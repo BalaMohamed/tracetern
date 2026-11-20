@@ -1,66 +1,47 @@
-# Architecture
+# TraceTern architecture
 
-## Current state
+TraceTern asks whether an optimization preserves a documented behavior under a workload that could expose a regression. The first supported workflow is reviewing database access changes in a trusted local Node service. An observed difference becomes a defect only when a stated requirement rules it out.
 
-Only Phase 0 documentation exists. There is no application, runner, dependency manifest, model integration, or executable benchmark. Everything below is proposed for review.
+## Components and boundaries
 
-## Smallest Phase 1 vertical slice
+| Component | Responsibility | Delivery |
+| --- | --- | --- |
+| Node/TypeScript CLI | Select a known candidate, compare paired observations, emit a terminal summary or machine-readable report | First milestone |
+| Replay worker | Start a fresh instance of the orders endpoint, seed independent session-local PostgreSQL tables, execute a fixed sequence, return observations | First milestone |
+| Comparator | Verify the reference response, check ordered rows and current names, count application reads separately from setup and writes | First milestone |
+| Local investigation store | Retain immutable run artifacts and index them by investigation, revision and experiment in SQLite | Planned |
+| Experiment planner | Use retrieved source, requirements and prior observations to propose bounded experiments through local Ollama structured output | Planned |
+| Assistant integration | Expose compact evidence and rerun operations to the user's coding assistant through MCP | Planned |
+| Local browser viewer | Render the request path, query groups and first differing response field from a selected saved investigation | Planned |
 
-Use one endpoint, `POST /reservations`, one inventory row initially containing 12 seats, and SQLite reservation persistence. The request has `party_size` and an optional `dietary_note`, defaulting to null. Defer cancellation, ownership, idempotency, and other stateful workflows until later approved increments.
+The CLI is the initial application process. Workers execute separately to prevent module and cache state leaking across implementations. The demo starts a disposable PostgreSQL cluster using a private Unix socket. The orders endpoint listens on an ephemeral loopback port for each worker. This execution model assumes trusted fixture code.
 
-Document one scoped invariant, I5: **given available inventory and otherwise valid input, every integer party size from 1 through 6 inclusive is accepted with HTTP 201**. Omitting the dietary note is valid fixture context; optional-field compatibility is not yet a separately evaluated oracle.
+## A paired experiment
 
-Baseline allows party size 6. A reviewed patch changes only the upper bound from 6 to 5. The hand-authored fault-revealing experiment sends `{"party_size": 6}` with the note omitted. Expected evidence is baseline 201 versus candidate 422. The invariant, not the mere difference, justifies confirmation.
+1. Choose a reference and candidate. The first milestone compares named fixture implementations shipped together. Comparing arbitrary Git revisions requires independent snapshots, dependency locks and build artifacts in a later adapter.
+2. Start each side from ordered fixture version 1: 100 orders referencing 100 distinct customers in reverse customer-ID order. Each worker owns one database session and one instance of the service.
+3. Issue a cold GET /orders, repeat the GET, rename customer 1 to Avery, then issue the GET again. Preserve process and database state between these steps. The freshness requirement is that the next read sees the committed rename. The order contract is ascending order ID.
+4. Check both sides against the fixture contract. A wrong reference or incomplete run makes the experiment inconclusive. A candidate response violating a requirement against a valid baseline yields a regression. A pass covers only the recorded workload. Compare SELECT counts independently of correctness; do not infer latency from counts.
+5. Emit a versioned report with fixture and implementation identities, environment, expected/observed mismatches and measured reads. The fixed seed and implementation names make a rerun possible from the same checkout. A machine-readable report can be redirected to a caller-chosen file.
 
-## Proposed data flow and boundaries
+## From replay to AI
 
-Trusted baseline snapshot + fixed benchmark patch → two revision snapshots → fresh SQLite database per side and experiment → same validated request → raw response and state summaries → one deterministic I5 oracle → evidence artifact and verdict.
+The first planner baseline is a rule: when a patch extends a value's lifetime across requests, change that value between reads. Retrieval should begin with changed symbols, test names, traces and requirement text. Introduce embeddings only if retrieval misses relevant evidence on held-out repositories.
 
-Minimal responsibilities, created only during implementation:
+The model receives that evidence plus a vocabulary of supported operations. It proposes a hypothesis and an ordered experiment. The runner validates operation types, referenced fixture records, bounds and budget before execution. Model output cannot supply shell commands, SQL, network locations or verdicts. Persist the accepted plan, requirement version, model digest and generation settings. Rerun the saved plan without calling the model.
 
-- `examples/reservation_service/`: application factory accepting an explicit database location; models and endpoint; no shared mutable app/database singleton.
-- `benchmark/`: reviewed mutation patch and metadata identifying family, affected invariant, baseline, and revealing input characteristics. Ground-truth metadata stays outside proposer/ranker context later.
-- `src/faultloom/experiments.py`: strict Pydantic data schema and semantic allowlist validation.
-- `src/faultloom/execution.py`: trusted worker orchestration, isolated state, fixed requests, response capture, and timeout/error handling.
-- `src/faultloom/oracles.py`: pure I5 evaluation from supplied observations and documented fixture preconditions.
-- `src/faultloom/reporting.py`: versioned JSON evidence persistence and small human-readable summary.
-- `tests/`: service contract, runner repeatability/reset, validation rejection, and oracle negative controls.
+For Git inputs, record both revision and tree identities, lockfile and build digests. Allocate distinct workers and database namespaces per side/run. Hold timing-sensitive dependencies fixed or return inconclusive. Scope cancellation, retry and cleanup to a single run. Write immutable artifacts before publishing their index entries. Capture query shapes and safe fixture fields by default; assistant handoffs must show which evidence leaves the local process.
 
-These are proposed responsibilities, not a commitment to create empty packages or a framework.
+## Interfaces and scaling
 
-## Experiment contract
+The terminal, browser and MCP adapter should address the same investigation and report schema. A later local service can expose get_evidence(runId), run_experiment(plan) and get_result(runId). The coding assistant owns the patch; TraceTern owns the recorded experiments and verdicts. Bind the viewer to loopback and keep persisted reports local by default.
 
-Phase 1 needs a version, ID, target enum (`reservation_service`), hypothesis, rationale, evidence references, trusted fixture ID, one request step, oracle ID, experiment family, and estimated cost. Evidence references identify the invariant source and hash. No generic setup language or capture-expression language yet.
+Parallelize independent investigations within a worker budget. Keep a stateful experiment sequential and use equivalent database settings on both sides. Add repeated latency samples and resource accounting before making performance claims beyond query counts. Bound evidence size and retain failed experiments alongside passes.
 
-The request is fixed to method POST and literal path `/reservations`; its typed body contains a bounded integer and optional bounded note. Reject unknown fields, URL/path variants, unsupported fixture/oracle IDs, and excess steps before execution. Later phases can widen the schema deliberately. The executor owns transport and setup; proposal fields cannot select modules, database paths, revision paths, or arbitrary headers.
+## Milestones and release gates
 
-## Revision and execution design
-
-Prefer a baseline Git commit plus one reviewed mutation patch over permanent duplicate applications or a production bug switch. Record baseline commit SHA, patch SHA-256, and candidate source-tree hash; do not invent a candidate Git SHA when the candidate is a derived snapshot. If an actual candidate commit exists, record that SHA too. Exact source and environment identity matter more than a misleading field name.
-
-Run each side in a separate child process using a fixed trusted worker entry point and an in-process ASGI client. This avoids importing both revisions under the same Python module name and avoids opening a listening HTTP port. The parent imposes a wall-clock deadline, terminates and reaps timed-out workers, and retains explicit failure evidence. Each worker gets its own temporary file-backed SQLite database and the identical trusted fixture. A matching initial logical state hash verifies equivalence. Dependency versions are shared and locked; dependency-changing patches are initially unsupported.
-
-This is process isolation for reproducibility, **not a sandbox for hostile application code**. Only the reviewed local demo is executable. Model text and retrieved documents have no execution authority. Testing arbitrary untrusted repositories requires a separate threat model and stronger isolation.
-
-## Oracle and verdict policy
-
-One initial oracle, I5, has PASS, FAIL, and UNKNOWN outcomes per side. It checks HTTP 201 only when the request and available-inventory preconditions hold. An invalid request is outside this invariant's domain, not an automatic violation.
-
-| Evidence | Verdict |
-| --- | --- |
-| Equivalent state, baseline PASS, candidate FAIL | CONFIRMED_REGRESSION |
-| Adequate comparable evidence differs, without proven candidate-only violation | BEHAVIOR_CHANGE_NEEDS_REVIEW |
-| Adequate equivalent evidence, relevant checks pass, no selected difference | NO_REGRESSION_DETECTED |
-| Worker failure, timeout, missing evidence, baseline violation, or unmet/unknown required precondition | INCONCLUSIVE |
-
-Infrastructure failure is not a regression. A captured API rejection with established preconditions can be one. Preserve raw responses; compare only declared fields and status, never normalize away the defect. A no-detection verdict is scoped to the executed experiment, not a safety claim.
-
-## Evidence and acceptance
-
-Persist a versioned JSON artifact atomically per run: experiment; request; baseline and candidate identities; patch and source hashes; invariant source/hash; fixture and initial-state hashes; dependency lock hash and Python version; seed; model/prompt fields explicitly null for hand-authored proposals; retrieval evidence empty; raw responses; database summaries; timings; per-side oracle result and reason; verdict; UTC timestamp. Keep database summaries diagnostic for Phase 1 rather than silently adding another oracle. Persistence failures must fail the run visibly.
-
-Acceptance checks: party size 6 confirms the defect; size 5 yields no detection; baseline-versus-baseline yields no detection; out-of-domain input cannot confirm I5; unexplained differences require review; baseline failure or worker timeout is inconclusive. Repeated runs after state mutation must retain equivalent initial state and the same semantic verdict; timestamps and durations need not match.
-
-## Deferred architecture
-
-After review: a local reasoning protocol, structured Ollama proposals, then retrieval with source hashes/line ranges, then bounded selection. Retrieval supplies undocumented-in-diff behavioral context; deterministic tooling identifies changed operations. Start lexical retrieval before adding embedding fusion and measure its incremental value. LangGraph and learned ranking remain gated. SQLite evidence tables can replace JSON when cross-run analysis needs them; create no speculative schema now.
+- **Deterministic runner.** Demonstrate the stale cache and passing batch with measured reads, order-sensitive assertions, error handling and a repeatable local command.
+- **Repository adapter and evidence.** Accept two trusted revisions and fixture setup, isolate builds, persist provenance and reproduce a finding by run ID.
+- **Local planner.** Compare a model with simple rules under the same budget. Separate invalid plans, inconclusive runs and confirmed regressions.
+- **Assistant and browser.** An agent submits a candidate, follows a finding back to source and reruns the same saved case. Both interfaces agree on every verdict.
+- **Evaluation.** Hold out whole repositories. Measure valid counterexamples, false alarms, replay cost, memory and reviewer time against the same coding assistant without TraceTern.
