@@ -23,4 +23,4 @@
 
 ## Approved milestone publication
 
-After an approved milestone: inspect existing changes, run relevant checks, review the diff, stage only milestone files, review `git diff --cached`, create one descriptive commit, show the exact commits, files, checks, branch and remote to the user, and ask for push approval. Only after approval, verify remote compatibility, push normally, verify the remote commit, report results, and stop. Report commit hash, files, branch, remote URL, checks, and push outcome.
+After an approved milestone: inspect existing changes, run relevant checks, review the diff, stage only milestone files, review `git diff --cached`, create one descriptive commit, verify remote compatibility, push normally to the verified origin, then verify the remote commit and report results. The user authorizes these routine pushes without a separate confirmation. Keep milestone scope and all safety checks in force. Report commit hash, files, branch, remote URL, checks, and push outcome.
