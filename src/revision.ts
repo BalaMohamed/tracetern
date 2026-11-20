@@ -39,7 +39,7 @@ export async function snapshot(ref: string): Promise<Snapshot> {
 }
 
 export async function harnessIdentity() {
-  const files = ['cli.js', 'worker.js', 'scenario.js', 'orders.js', 'investigation.js', 'revision.js', 'evidence.js'];
+  const files = ['cli.js', 'worker.js', 'scenario.js', 'orders.js', 'investigation.js', 'revision.js', 'evidence.js', 'experiment.js'];
   const hashes = await Promise.all(files.map(async name => digest(await readFile(new URL(name, import.meta.url)))));
   return {
     fixture: 'orders-list/v1', node: process.version, harnessSha256: digest(hashes.join(':')),

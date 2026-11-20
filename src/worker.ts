@@ -2,7 +2,9 @@ import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { Client } from 'pg';
 import { ordersService } from './orders.js';
-import { implementations, stages, type Implementation, type Observation, type Run } from './scenario.js';
+import { implementations, type Implementation, type Observation, type Run } from './scenario.js';
+
+import { defaultExperiment, observationStages, validateExperiment } from './experiment.js';
 
 async function replay(implementation: Implementation): Promise<Run> {
   const host = process.env.TRACETERN_SOCKET;
@@ -33,8 +35,13 @@ async function replay(implementation: Implementation): Promise<Run> {
     const address = server.address();
     if (!address || typeof address === 'string') throw new Error('Missing HTTP port');
     const observations: Observation[] = [];
-    for (const stage of stages) {
-      if (stage === 'after-rename') await db.query("UPDATE pg_temp.customers SET name='Avery' WHERE id=1");
+    const stages = observationStages(plan);
+    for (const step of plan.steps) {
+      if (step === 'rename') {
+        await db.query("UPDATE pg_temp.customers SET name='Avery' WHERE id=$1", [plan.customerId]);
+        continue;
+      }
+      const stage = stages[observations.length]!;
       const before = service.reads();
       const response = await fetch('http://127.0.0.1:' + address.port + '/orders', {
         signal: AbortSignal.timeout(10000),
@@ -49,6 +56,7 @@ async function replay(implementation: Implementation): Promise<Run> {
   }
 }
 
+const plan = validateExperiment(process.argv[4] ? JSON.parse(process.argv[4]) : defaultExperiment);
 const makeService: typeof ordersService = process.argv[3]
   ? (await import(process.argv[3])).ordersService : ordersService;
 const name = implementations.find(value => value === process.argv[2]);

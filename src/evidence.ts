@@ -1,3 +1,4 @@
+import type { Experiment } from './experiment.js';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -7,6 +8,7 @@ import type { compare } from './scenario.js';
 
 export type Result = ReturnType<typeof compare> | { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
 export interface Investigation {
+  plan?: Experiment;
   reference: Snapshot;
   candidate: Snapshot;
   environment: Awaited<ReturnType<typeof harnessIdentity>>;

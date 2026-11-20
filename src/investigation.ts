@@ -8,24 +8,26 @@ import { compare, type Implementation, type Run } from './scenario.js';
 import { digest, harnessIdentity, snapshot, type Snapshot } from './revision.js';
 import { openEvidence, type Result } from './evidence.js';
 
+import { defaultExperiment, validateExperiment, type Experiment } from './experiment.js';
+
 const execute = promisify(execFile);
-export async function runWorker(name: Implementation, modulePath?: string): Promise<Run> {
+export async function runWorker(name: Implementation, modulePath?: string, plan: Experiment = defaultExperiment): Promise<Run> {
   const args = [fileURLToPath(new URL('./worker.js', import.meta.url)), name];
-  if (modulePath) args.push(pathToFileURL(modulePath).href);
+  if (modulePath) args.push(pathToFileURL(modulePath).href, JSON.stringify(plan));
   const { stdout } = await execute(process.execPath, args, { timeout: 30_000 });
   return JSON.parse(stdout) as Run;
 }
 
-async function pairedRun(reference: Snapshot, candidate: Snapshot): Promise<Result> {
+async function pairedRun(reference: Snapshot, candidate: Snapshot, plan: Experiment): Promise<Result> {
   const directory = await mkdtemp(join(tmpdir(), 'tracetern-revisions-'));
   async function run(side: string, artifact: Snapshot) {
     if (digest(artifact.module) !== artifact.moduleSha256) throw new Error('Module digest mismatch: ' + side);
     const path = join(directory, side + '.mjs');
     await writeFile(path, artifact.module, { flag: 'wx', mode: 0o600 });
-    return runWorker('batch', path);
+    return runWorker('batch', path, plan);
   }
   try {
-    return compare(await run('reference', reference), await run('candidate', candidate));
+    return compare(await run('reference', reference), await run('candidate', candidate), plan);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -42,6 +44,7 @@ export async function investigate(request: Request) {
     const [reference, candidate] = request.command === 'compare'
       ? await Promise.all([snapshot(request.base), snapshot(request.candidate)])
       : [previous!.reference, previous!.candidate];
+    const plan = validateExperiment(previous?.plan ?? defaultExperiment);
     let result: Result;
     try {
       if (previous && JSON.stringify(previous.environment) !== JSON.stringify(environment)) {
@@ -50,7 +53,7 @@ export async function investigate(request: Request) {
       if ([reference, candidate].some(side => side.lockSha256 !== environment.lockSha256)) {
         throw new Error('Both snapshots must have the same dependency lock as the runner');
       }
-      result = await pairedRun(reference, candidate);
+      result = await pairedRun(reference, candidate, plan);
       if (previous && previous.result.verdict !== 'inconclusive' && result.verdict !== 'inconclusive'
           && previous.result.postgres !== result.postgres) {
         throw new Error('Replay requires the original PostgreSQL version');
@@ -58,10 +61,10 @@ export async function investigate(request: Request) {
     } catch (error) {
       result = { schemaVersion: 1, verdict: 'inconclusive', reason: error instanceof Error ? error.message : String(error) };
     }
-    const runId = store.save({ environment, reference, candidate, result, replayOf });
+    const runId = store.save({ plan, environment, reference, candidate, result, replayOf });
     const reproduced = previous && previous.result.verdict !== 'inconclusive' && result.verdict !== 'inconclusive'
       ? JSON.stringify(result) === JSON.stringify(previous.result) : undefined;
-    return { ...result, runId, baseCommit: reference.commit, candidateCommit: candidate.commit,
+    return { ...result, plan, runId, baseCommit: reference.commit, candidateCommit: candidate.commit,
       replayOf, reproduced };
   } finally {
     store.close();
