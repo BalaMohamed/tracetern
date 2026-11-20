@@ -31,4 +31,18 @@ Replace either `HEAD` with another committed revision containing `src/orders.ts`
 
 Compare resolves refs to commit and tree IDs, reads Git objects directly, and runs the two stripped modules in separate worker processes. It leaves the checkout untouched. A completed comparison prints a run ID. The ignored local `.tracetern/runs.sqlite` stores the exact service modules, their digests, the harness identity, and the result. Replay loads those saved bytes and writes a new run linked to the original. A changed runner, dependency lock, Node version or PostgreSQL version can make the replay inconclusive. IDs are local to the repository where the investigation was recorded. Use `--json` for a machine-readable result.
 
+## Choose an experiment
+
+The rule baseline selects a read–rename–read experiment for cache-like additions, or two reads otherwise. The local Ollama planner receives the orders requirements and bounded excerpts of added and removed lines. Both planners get one proposal with at most four operations on the same 100-customer fixture.
+
+```sh
+npm run demo -- plan HEAD~1 HEAD rule
+npm run demo -- plan HEAD~1 HEAD ollama <installed-model:tag>
+npm run demo -- replay <run-id>
+```
+
+Use an exact installed model tag from `ollama list` with Ollama listening at `127.0.0.1:11434`. The model may choose a customer and a sequence of reads and one rename. The runner validates that data before interacting with PostgreSQL. SQLite records the plan, planner version, model digest and result. Replay executes the accepted plan without querying Ollama. A provider error or invalid plan produces an inconclusive result with exit code 2.
+
+The default tests run offline. Set `TRACETERN_TEST_MODEL` to an installed model tag when running `npm test` to also compare the two planners on a seeded cache change and replay the model's result. A single fixture measures integration; comparative model quality requires independent cases.
+
 [Implementation plan](docs/PLAN.md) · [Architecture and milestone gates](docs/ARCHITECTURE.md)

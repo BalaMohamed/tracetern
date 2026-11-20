@@ -3,6 +3,16 @@ import { investigate, runWorker } from './investigation.js';
 
 async function dispatch(args: string[]) {
   const [command, first, second] = args;
+  if (command === 'plan' && first && second) {
+    const [kind, model] = args.slice(3);
+    if (kind === 'rule' && args.length === 4) {
+      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind } });
+    }
+    if (kind === 'ollama' && model && args.length === 5) {
+      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind, model } });
+    }
+    throw new Error('Usage: tracetern plan <base> <candidate> rule|ollama <model-tag>');
+  }
   if (command === 'compare' && first && second && args.length === 3) {
     return investigate({ command, base: first, candidate: second });
   }
@@ -28,6 +38,9 @@ try {
     if ('runId' in report) {
       console.log('Investigation ' + report.runId);
       console.log(report.baseCommit.slice(0, 12) + ' → ' + report.candidateCommit.slice(0, 12));
+      if (report.plan && report.planner) {
+        console.log(report.planner.kind + ' plan: ' + report.plan.steps.join(' → ') + ' (customer ' + report.plan.customerId + ')');
+      }
       if (report.reproduced !== undefined) console.log('Matches saved result: ' + report.reproduced);
     }
     if (report.verdict === 'inconclusive') {

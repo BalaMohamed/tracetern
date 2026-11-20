@@ -45,6 +45,25 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
   assert.equal(first.mismatch.expected.customerName, 'Avery');
   assert.deepEqual(first.reads.map((r: {candidate: number}) => r.candidate), [101, 1, 1]);
 
+  const rule = run(1, 'plan', base, candidate, 'rule');
+  assert.deepEqual(rule.plan.steps, ['read','rename','read']);
+  assert.equal(run(1, 'replay', rule.runId).reproduced, true);
+  if (process.env.TRACETERN_TEST_MODEL) {
+    const model = runPlannerTrial(process.env.TRACETERN_TEST_MODEL);
+    console.log('Local planner trial', JSON.stringify({ verdict: model.verdict, plan: model.plan,
+      reproduced: model.reproduced, ruleVerdict: rule.verdict }));
+  }
+  function runPlannerTrial(modelTag: string) {
+    const trial = spawnSync(process.execPath, [cli, 'plan', base, candidate, 'ollama', modelTag, '--json'],
+      { cwd, encoding: 'utf8', timeout: 160_000 });
+    assert.ok(trial.status === 0 || trial.status === 1, trial.stderr + trial.stdout);
+    const model = JSON.parse(trial.stdout);
+    assert.ok(model.proposal.modelDigest);
+    const repeated = run(trial.status, 'replay', model.runId);
+    assert.equal(repeated.reproduced, true);
+    return repeated;
+  }
+
   await writeFile(path, source);
   git('add', '--', 'src/orders.ts');
   git('commit', '-qm', 'Restore batching');

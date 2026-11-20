@@ -10,7 +10,7 @@ TraceTern asks whether an optimization preserves a documented behavior under a w
 | Replay worker | Start a fresh instance of the orders endpoint, seed independent session-local PostgreSQL tables, execute a fixed sequence, return observations | First milestone |
 | Comparator | Verify the reference response, check ordered rows and current names, count application reads separately from setup and writes | First milestone |
 | Local investigation store | Save paired service snapshots, provenance and results atomically in SQLite; replay by run ID | Orders revision adapter |
-| Experiment planner | Use retrieved source, requirements and prior observations to propose bounded experiments through local Ollama structured output | Planned |
+| Experiment planner | Choose a bounded read/rename plan from fixture requirements and changed source lines; record the validated proposal and model identity | Rule baseline and local Ollama |
 | Assistant integration | Expose compact evidence and rerun operations to the user's coding assistant through MCP | Planned |
 | Local browser viewer | Render the request path, query groups and first differing response field from a selected saved investigation | Planned |
 
