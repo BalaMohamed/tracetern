@@ -10,7 +10,7 @@ async function replay(implementation: Implementation): Promise<Run> {
   const db = new Client({ host, port: 5432, database: 'postgres', user: 'tracetern', ssl: false,
     connectionTimeoutMillis: 5000, statement_timeout: 5000 });
   await db.connect();
-  const service = ordersService(db, implementation);
+  const service = makeService(db, implementation);
   const server = createServer(async (req, res) => {
     if (req.method !== 'GET' || req.url !== '/orders') { res.writeHead(404).end(); return; }
     try {
@@ -49,6 +49,8 @@ async function replay(implementation: Implementation): Promise<Run> {
   }
 }
 
+const makeService: typeof ordersService = process.argv[3]
+  ? (await import(process.argv[3])).ordersService : ordersService;
 const name = implementations.find(value => value === process.argv[2]);
 if (!name) throw new Error('Unknown fixture implementation');
 process.stdout.write(JSON.stringify(await replay(name)));

@@ -9,7 +9,7 @@ TraceTern asks whether an optimization preserves a documented behavior under a w
 | Node/TypeScript CLI | Select a known candidate, compare paired observations, emit a terminal summary or machine-readable report | First milestone |
 | Replay worker | Start a fresh instance of the orders endpoint, seed independent session-local PostgreSQL tables, execute a fixed sequence, return observations | First milestone |
 | Comparator | Verify the reference response, check ordered rows and current names, count application reads separately from setup and writes | First milestone |
-| Local investigation store | Retain immutable run artifacts and index them by investigation, revision and experiment in SQLite | Planned |
+| Local investigation store | Save paired service snapshots, provenance and results atomically in SQLite; replay by run ID | Orders revision adapter |
 | Experiment planner | Use retrieved source, requirements and prior observations to propose bounded experiments through local Ollama structured output | Planned |
 | Assistant integration | Expose compact evidence and rerun operations to the user's coding assistant through MCP | Planned |
 | Local browser viewer | Render the request path, query groups and first differing response field from a selected saved investigation | Planned |
@@ -18,7 +18,7 @@ The CLI is the initial application process. Workers execute separately to preven
 
 ## A paired experiment
 
-1. Choose a reference and candidate. The first milestone compares named fixture implementations shipped together. Comparing arbitrary Git revisions requires independent snapshots, dependency locks and build artifacts in a later adapter.
+1. Choose a reference and candidate. The first milestone compares named fixture implementations shipped together. The orders adapter also accepts two Git refs, snapshots the standalone orders service at each commit and strips its types into an isolated executable module. Both use the installed harness and matching dependency lock.
 2. Start each side from ordered fixture version 1: 100 orders referencing 100 distinct customers in reverse customer-ID order. Each worker owns one database session and one instance of the service.
 3. Issue a cold GET /orders, repeat the GET, rename customer 1 to Avery, then issue the GET again. Preserve process and database state between these steps. The freshness requirement is that the next read sees the committed rename. The order contract is ascending order ID.
 4. Check both sides against the fixture contract. A wrong reference or incomplete run makes the experiment inconclusive. A candidate response violating a requirement against a valid baseline yields a regression. A pass covers only the recorded workload. Compare SELECT counts independently of correctness; do not infer latency from counts.

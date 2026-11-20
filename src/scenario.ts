@@ -34,6 +34,14 @@ export function firstMismatch(run: Run): Mismatch | undefined {
     throw new Error('Incomplete or unordered replay');
   }
   for (const frame of run.observations) {
+    if (!Array.isArray(frame.orders) || !Number.isSafeInteger(frame.reads) || frame.reads < 0) {
+      throw new Error('Malformed observations for ' + frame.stage);
+    }
+    if (frame.orders.some(row => !row || !Number.isSafeInteger(row.id) || typeof row.customerName !== 'string')) {
+      throw new Error('Malformed order in ' + frame.stage);
+    }
+  }
+  for (const frame of run.observations) {
     const { stage } = frame;
     for (let i = 0; i < Math.max(100, frame.orders.length); i++) {
       const customer = 100 - i;

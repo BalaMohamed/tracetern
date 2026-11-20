@@ -1,35 +1,47 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { fileURLToPath } from 'node:url';
-import { compare, implementations, type Implementation, type Run } from './scenario.js';
+import { compare, implementations } from './scenario.js';
+import { investigate, runWorker } from './investigation.js';
 
-const execute = promisify(execFile);
-async function runWorker(name: Implementation): Promise<Run> {
-  const worker = fileURLToPath(new URL('./worker.js', import.meta.url));
-  const { stdout } = await execute(process.execPath, [worker, name], { timeout: 30_000 });
-  return JSON.parse(stdout) as Run;
+async function dispatch(args: string[]) {
+  const [command, first, second] = args;
+  if (command === 'compare' && first && second && args.length === 3) {
+    return investigate({ command, base: first, candidate: second });
+  }
+  if (command === 'replay' && first && args.length === 2) {
+    return investigate({ command, runId: first });
+  }
+  const name = implementations.find(value => value === args[0]);
+  if (!name || args.length !== 1) {
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | compare <base> <candidate> | replay <run-id> [--json]');
+  }
+  return compare(await runWorker('batch'), await runWorker(name));
 }
 
 const args = process.argv.slice(2);
-const json = args.includes('--json');
+const flag = args.indexOf('--json');
+const json = flag >= 0;
+if (json) args.splice(flag, 1);
 try {
-  const candidate = implementations.find(value => value === args[0]);
-  if (!candidate || args.length !== (json ? 2 : 1)) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> [--json]');
-  }
-  const reference = await runWorker('batch');
-  const report = compare(reference, await runWorker(candidate));
+  const report = await dispatch(args);
   if (json) {
     console.log(JSON.stringify(report, null, 2));
   } else {
-    console.log('orders-list/v1  ·  batch reference → ' + candidate);
-    for (const row of report.reads) {
-      console.log(row.stage.padEnd(15) + row.reference + ' → ' + row.candidate + ' SQL reads');
+    if ('runId' in report) {
+      console.log('Investigation ' + report.runId);
+      console.log(report.baseCommit.slice(0, 12) + ' → ' + report.candidateCommit.slice(0, 12));
+      if (report.reproduced !== undefined) console.log('Matches saved result: ' + report.reproduced);
     }
-    console.log('Verdict: ' + report.verdict);
-    if (report.mismatch) console.log(JSON.stringify(report.mismatch));
+    if (report.verdict === 'inconclusive') {
+      console.error('Inconclusive: ' + report.reason);
+    } else {
+      console.log('orders-list/v1  ·  ' + report.reference + ' reference → ' + report.candidate);
+      for (const row of report.reads) {
+        console.log(row.stage.padEnd(15) + row.reference + ' → ' + row.candidate + ' SQL reads');
+      }
+      console.log('Verdict: ' + report.verdict);
+      if (report.mismatch) console.log(JSON.stringify(report.mismatch));
+    }
   }
-  process.exitCode = report.verdict === 'pass' ? 0 : 1;
+  process.exitCode = { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
 } catch (error) {
   const reason = error instanceof Error ? error.message : String(error);
   if (json) console.log(JSON.stringify({ schemaVersion: 1, verdict: 'inconclusive', reason }));
