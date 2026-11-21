@@ -31,6 +31,10 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
   git('commit', '-qm', 'Fixture baseline');
   const base = git('rev-parse', 'HEAD');
 
+  const demo = run(1, 'record', 'cache');
+  assert.equal(demo.plan.customerId, 1);
+  assert.equal(run(1, 'replay', demo.runId).reproduced, true);
+
   // A genuine source change changes the implementation under the same worker input.
   const cached = source.replace('export function ordersService', 'function buildService')
     + "\nexport const ordersService = (db: Client) => buildService(db, 'cache');\n";
@@ -70,6 +74,12 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
   await writeFile(path, 'throw new Error("Dirty working copy must not be executed");');
   const fixed = run(0, 'compare', base, 'HEAD');
   assert.equal(fixed.verdict, 'pass');
+  const verified = run(0, 'verify', rule.runId, 'HEAD');
+  assert.equal(verified.verificationOf, rule.runId);
+  assert.equal(verified.baseCommit, base);
+  assert.equal(verified.candidateCommit, fixed.candidateCommit);
+  assert.deepEqual(verified.plan, rule.plan);
+  assert.equal(verified.reproduced, undefined);
   const replay = run(1, 'replay', first.runId);
   assert.equal(replay.replayOf, first.runId);
   assert.equal(replay.reproduced, true);

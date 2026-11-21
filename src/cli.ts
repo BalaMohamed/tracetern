@@ -16,12 +16,19 @@ async function dispatch(args: string[]) {
   if (command === 'compare' && first && second && args.length === 3) {
     return investigate({ command, base: first, candidate: second });
   }
+  if (command === 'record' && args.length === 2) {
+    const implementation = implementations.find(value => value === first);
+    if (implementation) return investigate({ command, implementation });
+  }
+  if (command === 'verify' && first && second && args.length === 3) {
+    return investigate({ command, runId: first, candidate: second });
+  }
   if (command === 'replay' && first && args.length === 2) {
     return investigate({ command, runId: first });
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | compare <base> <candidate> | replay <run-id> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -41,6 +48,7 @@ try {
       if (report.plan && report.planner) {
         console.log(report.planner.kind + ' plan: ' + report.plan.steps.join(' → ') + ' (customer ' + report.plan.customerId + ')');
       }
+      if (report.verificationOf) console.log('Checking the experiment from ' + report.verificationOf);
       if (report.reproduced !== undefined) console.log('Matches saved result: ' + report.reproduced);
     }
     if (report.verdict === 'inconclusive') {

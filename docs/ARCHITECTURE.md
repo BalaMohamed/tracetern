@@ -8,7 +8,7 @@ TraceTern asks whether an optimization preserves a documented behavior under a w
 | --- | --- | --- |
 | Node/TypeScript CLI | Select a known candidate, compare paired observations, emit a terminal summary or machine-readable report | First milestone |
 | Replay worker | Start a fresh instance of the orders endpoint, seed independent session-local PostgreSQL tables, execute a fixed sequence, return observations | First milestone |
-| Comparator | Verify the reference response, check ordered rows and current names, count application reads separately from setup and writes | First milestone |
+| Comparator | Verify the reference response, check ordered rows and current names, count application reads and group PostgreSQL calls made during each request | First milestone |
 | Local investigation store | Save paired service snapshots, provenance and results atomically in SQLite; replay by run ID | Orders revision adapter |
 | Experiment planner | Choose a bounded read/rename plan from fixture requirements and changed source lines; record the validated proposal and model identity | Rule baseline and local Ollama |
 | Assistant integration | Expose compact evidence and rerun operations to the user's coding assistant through MCP | Planned |
@@ -30,7 +30,7 @@ The first planner baseline is a rule: when a patch extends a value's lifetime ac
 
 The model receives that evidence plus a vocabulary of supported operations. It proposes a hypothesis and an ordered experiment. The runner validates operation types, referenced fixture records, bounds and budget before execution. Model output cannot supply shell commands, SQL, network locations or verdicts. Persist the accepted plan, requirement version, model digest and generation settings. Rerun the saved plan without calling the model.
 
-For Git inputs, record both revision and tree identities, lockfile and build digests. Allocate distinct workers and database namespaces per side/run. Hold timing-sensitive dependencies fixed or return inconclusive. Scope cancellation, retry and cleanup to a single run. Write immutable artifacts before publishing their index entries. Capture query shapes and safe fixture fields by default; assistant handoffs must show which evidence leaves the local process.
+For Git inputs, record both revision and tree identities, lockfile and build digests. Allocate distinct workers and database namespaces per side/run. Hold timing-sensitive dependencies fixed or return inconclusive. Scope cancellation, retry and cleanup to a single run. Write immutable artifacts before publishing their index entries. Record named query groups and the first differing fixture response; assistant handoffs must show which evidence leaves the local process.
 
 ## Interfaces and scaling
 

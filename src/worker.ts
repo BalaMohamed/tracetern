@@ -3,8 +3,8 @@ import { once } from 'node:events';
 import { Client } from 'pg';
 import { ordersService } from './orders.js';
 import { implementations, type Implementation, type Observation, type Run } from './scenario.js';
-
 import { defaultExperiment, observationStages, validateExperiment } from './experiment.js';
+import { trackQueries } from './query-groups.js';
 
 async function replay(implementation: Implementation): Promise<Run> {
   const host = process.env.TRACETERN_SOCKET;
@@ -12,6 +12,7 @@ async function replay(implementation: Implementation): Promise<Run> {
   const db = new Client({ host, port: 5432, database: 'postgres', user: 'tracetern', ssl: false,
     connectionTimeoutMillis: 5000, statement_timeout: 5000 });
   await db.connect();
+  const queries = trackQueries(db);
   const service = makeService(db, implementation);
   const server = createServer(async (req, res) => {
     if (req.method !== 'GET' || req.url !== '/orders') { res.writeHead(404).end(); return; }
@@ -43,11 +44,14 @@ async function replay(implementation: Implementation): Promise<Run> {
       }
       const stage = stages[observations.length]!;
       const before = service.reads();
-      const response = await fetch('http://127.0.0.1:' + address.port + '/orders', {
-        signal: AbortSignal.timeout(10000),
+      const { value: orders, groups } = await queries.during(async () => {
+        const response = await fetch('http://127.0.0.1:' + address.port + '/orders', {
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) throw new Error('Orders request failed: ' + await response.text());
+        return response.json();
       });
-      if (!response.ok) throw new Error('Orders request failed: ' + await response.text());
-      observations.push({ stage, reads: service.reads() - before, orders: await response.json() });
+      observations.push({ stage, reads: service.reads() - before, orders, queryGroups: groups });
     }
     return { implementation, postgres: version.rows[0]!.server_version, observations };
   } finally {

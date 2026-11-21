@@ -1,4 +1,6 @@
 import { defaultExperiment, observationStages, type Experiment } from './experiment.js';
+import type { QueryGroups } from './query-groups.js';
+
 export const implementations = ['batch', 'cache', 'n-plus-one'] as const;
 export type Implementation = (typeof implementations)[number];
 export const stages = ['cold', 'warm', 'after-rename'] as const;
@@ -12,6 +14,7 @@ export interface Order {
 export interface Observation {
   stage: Stage;
   reads: number;
+  queryGroups?: QueryGroups;
   orders: Order[];
 }
 
@@ -24,6 +27,7 @@ export interface Run {
 export interface Mismatch {
   stage: Stage;
   position: number;
+  readIndex?: number;
   expected: Order | null;
   actual: Order | null;
 }
@@ -43,7 +47,7 @@ export function firstMismatch(run: Run, plan: Experiment = defaultExperiment): M
       throw new Error('Malformed order in ' + frame.stage);
     }
   }
-  for (const frame of run.observations) {
+  for (const [readIndex, frame] of run.observations.entries()) {
     const { stage } = frame;
     for (let i = 0; i < Math.max(100, frame.orders.length); i++) {
       const customer = 100 - i;
@@ -53,7 +57,7 @@ export function firstMismatch(run: Run, plan: Experiment = defaultExperiment): M
       };
       const actual = frame.orders[i] ?? null;
       if (actual?.id !== expected?.id || actual?.customerName !== expected?.customerName) {
-        return { stage, position: i, expected, actual };
+        return { stage, readIndex, position: i, expected, actual };
       }
     }
   }
@@ -72,8 +76,16 @@ export function compare(reference: Run, candidate: Run, plan: Experiment = defau
     candidate: candidate.implementation,
     verdict: mismatch ? 'regression' as const : 'pass' as const,
     mismatch: mismatch ?? null,
-    reads: observationStages(plan).map((stage, i) => ({
-      stage, reference: reference.observations[i]!.reads, candidate: candidate.observations[i]!.reads,
-    })),
+    reads: reference.observations.map((baseline, index) => {
+      const trial = candidate.observations[index]!;
+      return {
+        stage: baseline.stage,
+        reference: baseline.reads,
+        candidate: trial.reads,
+        queryGroups: baseline.queryGroups && trial.queryGroups
+          ? { reference: baseline.queryGroups, candidate: trial.queryGroups }
+          : undefined,
+      };
+    }),
   };
 }

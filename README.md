@@ -24,12 +24,16 @@ Run from the root of a trusted Git repository that follows the orders fixture co
 
 ```sh
 npm run demo -- compare HEAD HEAD
+npm run demo -- record cache
 npm run demo -- replay <run-id>
+npm run demo -- verify <run-id> <candidate-commit>
 ```
 
 Replace either `HEAD` with another committed revision containing `src/orders.ts` and the same `package-lock.json` as the runner. Each side's service must export the existing `ordersService` interface and be standalone after TypeScript type stripping. The fixed worker invokes the service with the same batch-mode input on both sides. Only the committed service module varies. Multi-file targets and changing dependencies need a future adapter.
 
-Compare resolves refs to commit and tree IDs, reads Git objects directly, and runs the two stripped modules in separate worker processes. It leaves the checkout untouched. A completed comparison prints a run ID. The ignored local `.tracetern/runs.sqlite` stores the exact service modules, their digests, the harness identity, and the result. Replay loads those saved bytes and writes a new run linked to the original. A changed runner, dependency lock, Node version or PostgreSQL version can make the replay inconclusive. IDs are local to the repository where the investigation was recorded. Use `--json` for a machine-readable result.
+The record command saves a bundled case using the committed orders service at HEAD in the selected fixture mode. Recording the stale cache returns exit 1 and still saves a run ID. Verify uses the saved baseline and experiment with a new committed candidate.
+
+Compare resolves refs to commit and tree IDs, reads Git objects directly, and runs the two stripped modules in separate worker processes. It leaves the checkout untouched. A completed comparison prints a run ID. The ignored local `.tracetern/runs.sqlite` stores the exact service modules, their digests, the harness identity, and the result. Replay loads those saved bytes and writes a new run linked to the original. A changed runner, dependency lock, Node version or PostgreSQL version can make the replay inconclusive. IDs are local to the repository where the investigation was recorded. New runs group PostgreSQL client calls by known fixture query shape, including an Other group for unrecognized statements. SQL text and bind values stay out of the report. Use `--json` for a machine-readable result.
 
 ## Choose an experiment
 

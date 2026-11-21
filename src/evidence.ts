@@ -5,7 +5,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { Snapshot, harnessIdentity } from './revision.js';
-import type { compare } from './scenario.js';
+import type { compare, Implementation } from './scenario.js';
 
 export type Result = ReturnType<typeof compare> | { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
 export interface Investigation {
@@ -17,6 +17,8 @@ export interface Investigation {
   environment: Awaited<ReturnType<typeof harnessIdentity>>;
   result: Result;
   replayOf?: string;
+  verificationOf?: string;
+  fixtureImplementation?: Implementation;
 }
 
 export function openEvidence(directory: string) {

@@ -19,6 +19,13 @@ for (const [name, exit, counts] of [
     if (exit === 1) {
       assert.equal(report.verdict, 'regression');
       assert.equal(report.mismatch.stage, 'after-rename');
+      assert.equal(report.mismatch.readIndex, 2);
+      assert.deepEqual(report.reads[0].queryGroups, {
+        reference: { orders: 1, customer: 0, customerBatch: 1, other: 0 },
+        candidate: { orders: 1, customer: 100, customerBatch: 0, other: 0 },
+      });
+      assert.deepEqual(report.reads[2].queryGroups.candidate,
+        { orders: 1, customer: 0, customerBatch: 0, other: 0 });
       assert.deepEqual(report.mismatch.expected, { id: 100, customerName: 'Avery' });
       assert.deepEqual(report.mismatch.actual, { id: 100, customerName: 'Customer 1' });
     } else {
