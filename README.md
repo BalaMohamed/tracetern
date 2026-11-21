@@ -14,7 +14,7 @@ npm run demo -- batch
 npm run demo -- n-plus-one
 ```
 
-A cache run exits 1 when it reproduces the stale-name regression. A batch run exits 0 for matching all ordered responses. The n-plus-one implementation also preserves the responses, but makes 101 reads per request. Exit 2 means the comparison could not be completed or its reference failed. Timing and production speedups are outside this fixture.
+A cache run exits 1 when it reproduces the stale-name regression. A batch run exits 0 for matching all ordered responses. The n-plus-one implementation also preserves the responses, but makes 101 PostgreSQL client calls per request. Exit 2 means the comparison could not be completed or its reference failed. Timing and production speedups are outside this fixture.
 
 For a JSON report, build once and run `bash scripts/with-postgres.sh node dist/src/cli.js cache --json`. The report goes to standard output. The script owns a temporary database cluster for the duration of the command. Each side of the comparison runs a fresh service process, preserving cache state across requests on that side only.
 
@@ -33,7 +33,11 @@ Replace either `HEAD` with another committed revision containing `src/orders.ts`
 
 The record command saves a bundled case using the committed orders service at HEAD in the selected fixture mode. Recording the stale cache returns exit 1 and still saves a run ID. Verify uses the saved baseline and experiment with a new committed candidate.
 
-Compare resolves refs to commit and tree IDs, reads Git objects directly, and runs the two stripped modules in separate worker processes. It leaves the checkout untouched. A completed comparison prints a run ID. The ignored local `.tracetern/runs.sqlite` stores the exact service modules, their digests, the harness identity, and the result. Replay loads those saved bytes and writes a new run linked to the original. A changed runner, dependency lock, Node version or PostgreSQL version can make the replay inconclusive. IDs are local to the repository where the investigation was recorded. New runs group PostgreSQL client calls by known fixture query shape, including an Other group for unrecognized statements. SQL text and bind values stay out of the report. Use `--json` for a machine-readable result.
+Compare resolves refs to commit and tree IDs, reads Git objects directly, and runs the two stripped modules in separate worker processes. It leaves the checkout untouched. A completed comparison prints a run ID. The ignored local `.tracetern/runs.sqlite` stores the exact service modules, their digests, the harness identity, and the result. Replay loads those saved bytes and writes a new run linked to the original. IDs are local to the repository where the investigation was recorded.
+
+The worker measures calls to the supplied PostgreSQL client during each request. Headline totals sum the query groups, including Other for unrecognized statements. Fixture setup and the between-request rename are outside the measurement. The JSON field `reads` carries these totals with `callMetric: "postgres-client-calls"`. SQL text and bind values stay out of the report.
+
+For new recordings, CLI and planner changes can alter the recorded harness identity while the saved experiment remains replayable. Replay and verification still require matching replay code, fixture, dependency lock, Node version, and the PostgreSQL version recorded by a completed run. Replay reports whether the saved behavior reproduced and whether the measured call counts matched. Older recordings remain readable and require their original runner build for replay.
 
 ## Choose an experiment
 
@@ -58,7 +62,7 @@ npm run view -- <run-id>
 
 Open the loopback URL printed by the viewer. Omit the run ID to open the most recent investigation. Select a read to compare request paths and grouped database calls. The evidence includes the first differing response field and the exact candidate commit and source path. Open **Replay and source** for the terminal commands. After making a fix, commit it and run `npm run demo -- verify <run-id> HEAD` to check the same experiment against it.
 
-The viewer reads the local evidence store and needs no database server or model. Older reports remain inspectable with their original totals. Replay and verify require a runner build that matches the saved evidence.
+The viewer reads the local evidence store and needs no database server or model. It labels the original totals in older reports as reported reads.
 
 ## Connect a coding assistant
 

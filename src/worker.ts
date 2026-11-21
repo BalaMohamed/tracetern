@@ -43,7 +43,6 @@ async function replay(implementation: Implementation): Promise<Run> {
         continue;
       }
       const stage = stages[observations.length]!;
-      const before = service.reads();
       const { value: orders, groups } = await queries.during(async () => {
         const response = await fetch('http://127.0.0.1:' + address.port + '/orders', {
           signal: AbortSignal.timeout(10000),
@@ -51,7 +50,8 @@ async function replay(implementation: Implementation): Promise<Run> {
         if (!response.ok) throw new Error('Orders request failed: ' + await response.text());
         return response.json();
       });
-      observations.push({ stage, reads: service.reads() - before, orders, queryGroups: groups });
+      const reads = Object.values(groups).reduce((total, count) => total + count, 0);
+      observations.push({ stage, reads, orders, queryGroups: groups });
     }
     return { implementation, postgres: version.rows[0]!.server_version, observations };
   } finally {

@@ -24,7 +24,7 @@ export interface RunEvidence extends RunSummary {
   sourcePath: string;
   planner: 'rule' | 'ollama' | null;
   plan: Experiment | null;
-  observed: Pick<Completed, 'postgres' | 'reads' | 'mismatch'> | null;
+  observed: Pick<Completed, 'postgres' | 'reads' | 'mismatch' | 'callMetric'> | null;
 }
 
 const summaryColumns = `id, created_at,
@@ -92,6 +92,7 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
       plan: typeof row.plan === 'string' ? JSON.parse(row.plan) as Experiment : result && defaultExperiment,
       observed: result && {
         postgres: result.postgres,
+        callMetric: result.callMetric,
         reads: result.reads,
         mismatch: mismatch ? {
           stage: mismatch.stage,

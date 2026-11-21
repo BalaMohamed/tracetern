@@ -76,6 +76,7 @@ export function compare(reference: Run, candidate: Run, plan: Experiment = defau
     candidate: candidate.implementation,
     verdict: mismatch ? 'regression' as const : 'pass' as const,
     mismatch: mismatch ?? null,
+    callMetric: 'postgres-client-calls' as const,
     reads: reference.observations.map((baseline, index) => {
       const trial = candidate.observations[index]!;
       return {

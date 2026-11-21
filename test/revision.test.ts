@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { openEvidence } from '../src/evidence.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const cli = join(root, 'dist/src/cli.js');
@@ -17,7 +18,10 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
     '-c', 'commit.gpgSign=false', ...args,
   ], { cwd, encoding: 'utf8' }).trim();
   function run(status: number, ...args: string[]) {
-    const result = spawnSync(process.execPath, [cli, ...args, '--json'], { cwd, encoding: 'utf8', timeout: 75_000 });
+    return runWith(cli, status, ...args);
+  }
+  function runWith(entryPoint: string, status: number, ...args: string[]) {
+    const result = spawnSync(process.execPath, [entryPoint, ...args, '--json'], { cwd, encoding: 'utf8', timeout: 75_000 });
     assert.equal(result.status, status, result.stderr + result.stdout);
     return JSON.parse(result.stdout);
   }
@@ -68,6 +72,13 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
     return repeated;
   }
 
+  await writeFile(path, source.replace('reads: () => readCount', 'reads: () => 0'));
+  git('add', '--', 'src/orders.ts');
+  git('commit', '-qm', 'Report zero reads without changing queries');
+  const counterChange = run(0, 'compare', base, 'HEAD');
+  assert.equal(counterChange.callMetric, 'postgres-client-calls');
+  assert.deepEqual(counterChange.reads.map((read: { candidate: number }) => read.candidate), [2, 2, 2]);
+
   await writeFile(path, source);
   git('add', '--', 'src/orders.ts');
   git('commit', '-qm', 'Restore batching');
@@ -86,6 +97,55 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
   assert.notEqual(replay.runId, first.runId);
   assert.equal(replay.candidateCommit, candidate);
   assert.equal(await readFile(path, 'utf8'), 'throw new Error("Dirty working copy must not be executed");');
+
+  const alternate = join(cwd, 'alternate-runner');
+  const compiled = join(alternate, 'dist/src');
+  await cp(join(root, 'dist/src'), compiled, { recursive: true });
+  await mkdir(join(alternate, 'scripts'));
+  await cp(join(root, 'scripts/with-postgres.sh'), join(alternate, 'scripts/with-postgres.sh'));
+  await cp(join(root, 'package-lock.json'), join(alternate, 'package-lock.json'));
+  await symlink(join(root, 'node_modules'), join(alternate, 'node_modules'), 'dir');
+
+  const alternateCli = join(compiled, 'cli.js');
+  await appendFile(alternateCli, '\n// CLI presentation changed.\n');
+  const afterCliChange = runWith(alternateCli, 1, 'replay', rule.runId);
+  assert.equal(afterCliChange.reproduced, true);
+  assert.equal(afterCliChange.measurementsMatch, true);
+
+  await writeFile(join(compiled, 'planner.js'), 'export function propose() { throw new Error("Planner must not run"); }\n');
+  const afterPlannerChange = runWith(alternateCli, 1, 'replay', rule.runId);
+  assert.equal(afterPlannerChange.reproduced, true);
+  assert.equal(afterPlannerChange.measurementsMatch, true);
+  assert.deepEqual(afterPlannerChange.plan, rule.plan);
+  const alternateVerification = runWith(alternateCli, 0, 'verify', rule.runId, fixed.candidateCommit);
+  assert.equal(alternateVerification.verificationOf, rule.runId);
+
+  const store = openEvidence(join(cwd, '.tracetern'));
+  try {
+    const saved = store.load(rule.runId);
+    const fromCli = store.load(afterCliChange.runId);
+    const fromPlanner = store.load(afterPlannerChange.runId);
+    assert.notEqual(fromCli.environment.harnessSha256, saved.environment.harnessSha256);
+    assert.notEqual(fromPlanner.environment.harnessSha256, fromCli.environment.harnessSha256);
+    assert.equal(fromPlanner.environment.replaySha256, saved.environment.replaySha256);
+
+    if (saved.result.verdict === 'inconclusive') throw new Error(saved.result.reason);
+    saved.result.reads[0]!.candidate++;
+    const changedMeasurements = runWith(alternateCli, 1, 'replay', store.save(saved));
+    assert.equal(changedMeasurements.reproduced, true);
+    assert.equal(changedMeasurements.measurementsMatch, false);
+
+    const legacy = store.load(rule.runId);
+    delete legacy.environment.replaySha256;
+    const legacyReplay = runWith(alternateCli, 2, 'replay', store.save(legacy));
+    assert.match(legacyReplay.reason, /older recording requires the original runner build/);
+  } finally {
+    store.close();
+  }
+
+  await appendFile(join(compiled, 'scenario.js'), '\n// Replay code changed.\n');
+  const changedRunner = runWith(alternateCli, 2, 'replay', rule.runId);
+  assert.match(changedRunner.reason, /compatible replay code/);
 
   await writeFile(path, 'export function ordersService() { return { reads: () => 0, list: () => ({}) }; }');
   git('add', '--', 'src/orders.ts');

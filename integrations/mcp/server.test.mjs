@@ -50,6 +50,7 @@ test('MCP reads a recorded case, replays it, and verifies a committed fix', { ti
   assert.equal(run.verdict, 'regression');
   assert.equal(run.observed.mismatch.expected.customerName, 'Avery');
   assert.equal(run.observed.reads[0].queryGroups.candidate.customer, 100);
+  assert.equal(run.observed.callMetric, 'postgres-client-calls');
   assert.equal(run.sourcePath, 'src/orders.ts');
   assert.doesNotMatch(JSON.stringify(details), /moduleSha256|SELECT name|fixture@example/);
   await reader.close();
@@ -60,6 +61,7 @@ test('MCP reads a recorded case, replays it, and verifies a committed fix', { ti
   const replay = await runner.callTool({ name: 'replay_run', arguments: { runId } });
   assert.ok(replay.structuredContent, JSON.stringify(replay));
   assert.equal(replay.structuredContent.reproduced, true);
+  assert.equal(replay.structuredContent.measurementsMatch, true);
   assert.equal(replay.structuredContent.run.replayOf, runId);
   assert.notEqual(replay.structuredContent.run.runId, runId);
 

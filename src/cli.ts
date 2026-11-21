@@ -49,14 +49,15 @@ try {
         console.log(report.planner.kind + ' plan: ' + report.plan.steps.join(' → ') + ' (customer ' + report.plan.customerId + ')');
       }
       if (report.verificationOf) console.log('Checking the experiment from ' + report.verificationOf);
-      if (report.reproduced !== undefined) console.log('Matches saved result: ' + report.reproduced);
+      if (report.reproduced !== undefined) console.log('Matches saved behavior: ' + report.reproduced);
+      if (report.measurementsMatch !== undefined) console.log('Matches saved call counts: ' + report.measurementsMatch);
     }
     if (report.verdict === 'inconclusive') {
       console.error('Inconclusive: ' + report.reason);
     } else {
       console.log('orders-list/v1  ·  ' + report.reference + ' reference → ' + report.candidate);
       for (const row of report.reads) {
-        console.log(row.stage.padEnd(15) + row.reference + ' → ' + row.candidate + ' SQL reads');
+        console.log(row.stage.padEnd(15) + row.reference + ' → ' + row.candidate + ' PostgreSQL client calls');
       }
       console.log('Verdict: ' + report.verdict);
       if (report.mismatch) console.log(JSON.stringify(report.mismatch));

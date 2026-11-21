@@ -74,11 +74,12 @@ function commands(run: RunEvidence) {
   return details;
 }
 
-function pathLane(side: string, reads: number) {
+function pathLane(side: string, count: number, measured: boolean) {
   const lane = element('li', 'lane');
   lane.append(element('strong', 'lane-label', side));
   const route = element('div', 'route');
-  const callCount = element('span', 'read-count', reads + (reads === 1 ? ' read' : ' reads'));
+  const unit = measured ? 'call' : 'reported read';
+  const callCount = element('span', 'read-count', count + ' ' + unit + (count === 1 ? '' : 's'));
   route.append(
     element('code', 'route-node', 'GET /orders'),
     element('span', 'route-edge'),
@@ -137,7 +138,8 @@ function evidence(run: RunEvidence, observed: NonNullable<RunEvidence['observed'
     }
     const paths = element('ul', index === firstDifferentRead ? 'paths changed' : 'paths');
     paths.setAttribute('aria-label', stages[selected.stage] + ' comparison');
-    paths.append(pathLane('Baseline', selected.reference), pathLane('Candidate', selected.candidate));
+    const measured = observed.callMetric === 'postgres-client-calls';
+    paths.append(pathLane('Baseline', selected.reference, measured), pathLane('Candidate', selected.candidate, measured));
     panel.replaceChildren(paths, queryBreakdown(selected.queryGroups));
   }
 

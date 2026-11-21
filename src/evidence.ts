@@ -4,17 +4,19 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Snapshot, harnessIdentity } from './revision.js';
+import type { HarnessIdentity, Snapshot } from './revision.js';
 import type { compare, Implementation } from './scenario.js';
 
-export type Result = ReturnType<typeof compare> | { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
+type Comparison = ReturnType<typeof compare>;
+type SavedComparison = Omit<Comparison, 'callMetric'> & { callMetric?: Comparison['callMetric'] };
+export type Result = SavedComparison | { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
 export interface Investigation {
   plan?: Experiment;
   planner?: Planner;
   proposal?: Proposal;
   reference: Snapshot;
   candidate: Snapshot;
-  environment: Awaited<ReturnType<typeof harnessIdentity>>;
+  environment: HarnessIdentity;
   result: Result;
   replayOf?: string;
   verificationOf?: string;

@@ -70,6 +70,7 @@ test('viewer serves saved and legacy evidence without source or process diagnost
   assert.deepEqual(saved.plan?.steps, ['read', 'read', 'rename', 'read']);
   assert.equal(saved.observed?.mismatch?.actual?.customerName, 'Customer 1');
   assert.equal(saved.observed?.reads[0]?.queryGroups, undefined);
+  assert.equal(saved.observed?.callMetric, undefined);
   assert.doesNotMatch(JSON.stringify(saved), /private-fixture-source-canary/);
 
   const failed = await (await request('/api/runs/' + inconclusive)).text();

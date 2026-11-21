@@ -78,7 +78,7 @@ function createServer() {
         const result = await runCase(args);
         const run = result.runId && getRun(directory, result.runId);
         if (!run) return failure('The runner produced no saved result. Check the revision and runner setup in the terminal.');
-        return evidence({ run, reproduced: result.reproduced ?? null });
+        return evidence({ run, reproduced: result.reproduced ?? null, measurementsMatch: result.measurementsMatch ?? null });
       } catch {
         return failure('TraceTern could not complete the experiment. Check the runner setup in the terminal.');
       } finally {

@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { promisify } from 'node:util';
+import { isDeepStrictEqual, promisify } from 'node:util';
 import { compare, type Implementation, type Run } from './scenario.js';
 import { digest, harnessIdentity, snapshot, type Snapshot } from './revision.js';
 import { openEvidence, type Investigation, type Result } from './evidence.js';
@@ -59,6 +59,14 @@ async function selectSnapshots(request: Request, original: Investigation | undef
   return [original.reference, candidate] as const;
 }
 
+function compareWithSavedResult(saved: Result | undefined, result: Result) {
+  if (!saved || saved.verdict === 'inconclusive' || result.verdict === 'inconclusive') return {};
+  return {
+    reproduced: saved.verdict === result.verdict && isDeepStrictEqual(saved.mismatch, result.mismatch),
+    measurementsMatch: saved.callMetric === result.callMetric && isDeepStrictEqual(saved.reads, result.reads),
+  };
+}
+
 export async function investigate(request: Request) {
   const environment = await harnessIdentity();
   const store = openEvidence('.tracetern');
@@ -70,12 +78,21 @@ export async function investigate(request: Request) {
     const fixtureImplementation = request.command === 'record' ? request.implementation
       : request.command === 'replay' ? original?.fixtureImplementation : undefined;
     const planner = request.command === 'compare' ? request.planner : original?.planner;
+    const savedEnvironment = original?.environment;
     let proposal: Proposal | undefined = original?.proposal;
     let plan: Experiment | undefined = original?.plan;
     let result: Result;
     try {
-      if (original && JSON.stringify(original.environment) !== JSON.stringify(environment)) {
-        throw new Error('Rerun requires the original runner build, Node version and dependency lock');
+      if (savedEnvironment && !savedEnvironment.replaySha256) {
+        throw new Error('This older recording requires the original runner build');
+      }
+      if (savedEnvironment && (
+        savedEnvironment.fixture !== environment.fixture ||
+        savedEnvironment.node !== environment.node ||
+        savedEnvironment.lockSha256 !== environment.lockSha256 ||
+        savedEnvironment.replaySha256 !== environment.replaySha256
+      )) {
+        throw new Error('Rerun requires compatible replay code, fixture, Node version and dependency lock');
       }
       if (reference.lockSha256 !== environment.lockSha256 || candidate.lockSha256 !== environment.lockSha256) {
         throw new Error('Both snapshots must have the same dependency lock as the runner');
@@ -93,14 +110,13 @@ export async function investigate(request: Request) {
       result = { schemaVersion: 1, verdict: 'inconclusive', reason: error instanceof Error ? error.message : String(error) };
     }
     const runId = store.save({
-      plan, planner, proposal, environment: original?.environment ?? environment,
+      plan, planner, proposal, environment: result.verdict === 'inconclusive' && savedEnvironment
+        ? savedEnvironment : environment,
       reference, candidate, result, replayOf, verificationOf, fixtureImplementation,
     });
-    const reproduced = replayOf && original && original.result.verdict !== 'inconclusive' && result.verdict !== 'inconclusive'
-      ? JSON.stringify(result) === JSON.stringify(original.result) : undefined;
     return {
       ...result, plan, planner, proposal, runId, baseCommit: reference.commit, candidateCommit: candidate.commit,
-      replayOf, verificationOf, reproduced,
+      replayOf, verificationOf, ...compareWithSavedResult(replayOf ? original?.result : undefined, result),
     };
   } finally {
     store.close();
