@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>TraceTern</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/view.js"></script>
+</head>
+<body>
+  <a class="skip" href="#investigation">Skip to investigation</a>
+  <header class="masthead">
+    <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>TraceTern</a>
+    <span class="masthead-label">Local evidence</span>
+  </header>
+  <div class="workspace">
+    <nav class="sidebar" aria-labelledby="sidebar-title">
+      <div class="sidebar-header">
+        <h2 id="sidebar-title">Investigations</h2>
+        <a class="refresh" id="refresh" href="/">Refresh</a>
+      </div>
+      <ul id="runs"></ul>
+    </nav>
+    <main id="investigation">
+      <p id="loading" role="status">Reading saved investigations…</p>
+    </main>
+  </div>
+</body>
+</html>

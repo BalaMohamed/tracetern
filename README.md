@@ -49,4 +49,15 @@ Use an exact installed model tag from `ollama list` with Ollama listening at `12
 
 The default tests run offline. Set `TRACETERN_TEST_MODEL` to an installed model tag when running `npm test` to also compare the two planners on a seeded cache change and replay the model's result. A single fixture measures integration; comparative model quality requires independent cases.
 
+## Inspect a saved investigation
+
+```sh
+npm run demo -- record cache
+npm run view -- <run-id>
+```
+
+Open the loopback URL printed by the viewer. Omit the run ID to open the most recent investigation. Select a read to compare request paths and grouped database calls. The evidence includes the first differing response field and the exact candidate commit and source path. Open **Replay and source** for the terminal commands. After making a fix, commit it and run `npm run demo -- verify <run-id> HEAD` to check the same experiment against it.
+
+The viewer reads the local evidence store and needs no database server or model. Older reports remain inspectable with their original totals. Replay and verify require a runner build that matches the saved evidence.
+
 [Implementation plan](docs/PLAN.md) · [Architecture and milestone gates](docs/ARCHITECTURE.md)

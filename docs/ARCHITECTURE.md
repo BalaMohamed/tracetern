@@ -12,7 +12,7 @@ TraceTern asks whether an optimization preserves a documented behavior under a w
 | Local investigation store | Save paired service snapshots, provenance and results atomically in SQLite; replay by run ID | Orders revision adapter |
 | Experiment planner | Choose a bounded read/rename plan from fixture requirements and changed source lines; record the validated proposal and model identity | Rule baseline and local Ollama |
 | Assistant integration | Expose compact evidence and rerun operations to the user's coding assistant through MCP | Planned |
-| Local browser viewer | Render the request path, query groups and first differing response field from a selected saved investigation | Planned |
+| Local browser viewer | Switch between observed reads, compare PostgreSQL query groups and inspect the first response difference or recorded source revision | Loopback viewer |
 
 The CLI is the initial application process. Workers execute separately to prevent module and cache state leaking across implementations. The demo starts a disposable PostgreSQL cluster using a private Unix socket. The orders endpoint listens on an ephemeral loopback port for each worker. This execution model assumes trusted fixture code.
 
