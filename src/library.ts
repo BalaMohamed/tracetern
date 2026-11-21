@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual, promisify } from 'node:util';
 import { openEvidence, type Inconclusive, type LibraryInvestigation } from './evidence.js';
-import { expectedLookups, libraryFixture, libraryPlan, type LibraryLookups, type LibraryResult } from './library-cases.js';
+import { expectedLookups, libraryFixture, libraryPlan, validateLibraryPlan,
+  type LibraryCase, type LibraryLookups, type LibraryResult } from './library-cases.js';
+import { keyGuide, persistenceGuide, plannerPaths, selectLibraryExperiments, type LibraryPlanning } from './library-planner.js';
 import { digest, type HarnessIdentity, type Snapshot } from './revision.js';
 
 const execute = promisify(execFile);
@@ -13,16 +15,36 @@ const sourceDirectory = 'packages/query-core/src';
 const sourcePath = sourceDirectory + '/index.ts';
 const buildDirectory = new URL('../../adapters/tanstack/', import.meta.url);
 const lockURL = new URL('package-lock.json', buildDirectory);
+// The f71e0b4 runner saved the same cases as a single, fixed suite.
+const originalSuiteSha256 = '8eb06fd88f2efd6abe5fb65fa34c88de4a2c1b8379beac3306a346ec03299249';
 
-async function snapshot(repository: string, ref: string, toolLock: string): Promise<Snapshot> {
-  const git = async (...args: string[]) => (await execute('git', ['-C', repository, ...args], {
+async function git(repository: string, ...args: string[]) {
+  return (await execute('git', ['-C', repository, ...args], {
     timeout: 15_000, maxBuffer: 4 * 1024 * 1024,
   })).stdout;
-  const commit = (await git('rev-parse', '--verify', '--end-of-options', ref + '^{commit}')).trim();
+}
+
+async function pin(repository: string, ref: string) {
+  return (await git(repository, 'rev-parse', '--verify', '--end-of-options', ref + '^{commit}')).trim();
+}
+
+async function planChange(repository: string, base: string, candidate: string) {
+  const paths = [keyGuide, persistenceGuide];
+  const [diff, docs] = await Promise.all([
+    git(repository, 'diff', '--no-ext-diff', '--no-textconv', '--no-renames', '--unified=0',
+      base, candidate, '--', ...plannerPaths),
+    git(repository, 'ls-tree', '-r', '-z', '--name-only', base, '--', ...paths),
+  ]);
+  const texts = await Promise.all(docs.split('\0').filter(path => paths.includes(path)).map(async path =>
+    [path, await git(repository, 'cat-file', 'blob', base + ':' + path)] as const));
+  return selectLibraryExperiments(diff, new Map(texts));
+}
+
+async function snapshot(repository: string, commit: string, toolLock: string): Promise<Snapshot> {
   const [tree, files, lock] = await Promise.all([
-    git('rev-parse', commit + '^{tree}'),
-    git('ls-tree', '-z', '--name-only', commit + ':' + sourceDirectory),
-    git('cat-file', 'blob', commit + ':pnpm-lock.yaml'),
+    git(repository, 'rev-parse', commit + '^{tree}'),
+    git(repository, 'ls-tree', '-z', '--name-only', commit + ':' + sourceDirectory),
+    git(repository, 'cat-file', 'blob', commit + ':pnpm-lock.yaml'),
   ]);
   const resolved = /^  packages\/query-core:\n((?:^    .*\n)*)/m.exec(lock)?.[1];
   if (!resolved) throw new Error('Cannot identify the query-core dependency lock');
@@ -41,7 +63,7 @@ async function snapshot(repository: string, ref: string, toolLock: string): Prom
   const directory = await mkdtemp(join(tmpdir(), 'tracetern-query-source-'));
   try {
     await Promise.all(sources.map(async name => {
-      const source = await git('cat-file', 'blob', commit + ':' + sourceDirectory + '/' + name);
+      const source = await git(repository, 'cat-file', 'blob', commit + ':' + sourceDirectory + '/' + name);
       await writeFile(join(directory, name), source, { mode: 0o600 });
     }));
     const { stdout: module } = await execute(process.execPath, [
@@ -56,28 +78,30 @@ async function snapshot(repository: string, ref: string, toolLock: string): Prom
 async function environment(lockSha256: string): Promise<HarnessIdentity> {
   const replayFiles = ['library.js', 'library-worker.js', 'library-cases.js'];
   const hashes = await Promise.all(replayFiles.map(async file => digest(await readFile(new URL(file, import.meta.url)))));
-  const presentation = await readFile(new URL('cli.js', import.meta.url));
+  const otherFiles = ['cli.js', 'library-planner.js'];
+  const otherHashes = await Promise.all(otherFiles.map(async file => digest(await readFile(new URL(file, import.meta.url)))));
   return {
     fixture: libraryFixture, node: process.version, lockSha256,
     replaySha256: digest(hashes.join(':')),
-    harnessSha256: digest([...hashes, digest(presentation)].join(':')),
+    harnessSha256: digest([...hashes, ...otherHashes].join(':')),
   };
 }
 
-async function compare(reference: Snapshot, candidate: Snapshot): Promise<LibraryResult> {
+async function compare(reference: Snapshot, candidate: Snapshot, plan: LibraryCase[]): Promise<LibraryResult> {
   const directory = await mkdtemp(join(tmpdir(), 'tracetern-query-run-'));
   const snapshotPath = join(directory, 'baseline.json');
   async function observe(side: string, artifact: Snapshot, baseline?: string) {
     if (digest(artifact.module) !== artifact.moduleSha256) throw new Error('Module digest mismatch: ' + side);
     const modulePath = join(directory, side + '.mjs');
     await writeFile(modulePath, artifact.module, { flag: 'wx', mode: 0o600 });
-    const args = [fileURLToPath(new URL('./library-worker.js', import.meta.url)), pathToFileURL(modulePath).href];
+    const args = [fileURLToPath(new URL('./library-worker.js', import.meta.url)),
+      pathToFileURL(modulePath).href, JSON.stringify(plan)];
     if (baseline) args.push(baseline);
     const { stdout } = await execute(process.execPath, args, {
       timeout: 15_000, maxBuffer: 256 * 1024, env: { ...process.env, NODE_ENV: 'production' },
     });
     const output = JSON.parse(stdout) as { observations: LibraryLookups; snapshot?: unknown };
-    for (const id of libraryPlan) {
+    for (const id of plan) {
       const values = output.observations?.[id];
       if (!Array.isArray(values) || values.length !== expectedLookups[id].length ||
           values.some(value => value !== null && typeof value !== 'string')) {
@@ -89,16 +113,19 @@ async function compare(reference: Snapshot, candidate: Snapshot): Promise<Librar
 
   try {
     const baseline = await observe('reference', reference);
-    if (!baseline.snapshot) throw new Error('Missing baseline cache snapshot');
-    await writeFile(snapshotPath, JSON.stringify(baseline.snapshot), { flag: 'wx', mode: 0o600 });
-    const trial = await observe('candidate', candidate, snapshotPath);
-    const checks = libraryPlan.map(id => {
+    const restore = plan.includes('restore-baseline-cache');
+    if (restore) {
+      if (!baseline.snapshot) throw new Error('Missing baseline cache snapshot');
+      await writeFile(snapshotPath, JSON.stringify(baseline.snapshot), { flag: 'wx', mode: 0o600 });
+    }
+    const trial = await observe('candidate', candidate, restore ? snapshotPath : undefined);
+    const checks = plan.map(id => {
       const expected = expectedLookups[id];
       if (!isDeepStrictEqual(expected, baseline.observations[id])) {
         throw new Error('Reference violates the documented cache behavior in ' + id);
       }
       return {
-        id, expected, reference: baseline.observations[id], candidate: trial.observations[id],
+        id, expected, reference: baseline.observations[id]!, candidate: trial.observations[id]!,
         matched: isDeepStrictEqual(expected, trial.observations[id]),
       };
     });
@@ -108,7 +135,7 @@ async function compare(reference: Snapshot, candidate: Snapshot): Promise<Librar
   }
 }
 
-type Request = { repository: string; base: string; candidate: string } | { replayOf: string };
+type Request = { repository: string; base: string; candidate: string; select?: boolean } | { replayOf: string };
 
 export async function investigateLibrary(request: Request) {
   const store = openEvidence('.tracetern');
@@ -118,12 +145,28 @@ export async function investigateLibrary(request: Request) {
     let reference: Snapshot;
     let candidate: Snapshot;
     let lockSha256: string;
+    let planning: LibraryPlanning | undefined = original?.planning;
+    let plan = original?.plan ?? libraryPlan;
     if ('repository' in request) {
+      const [baseCommit, candidateCommit] = await Promise.all([
+        pin(request.repository, request.base), pin(request.repository, request.candidate),
+      ]);
+      if (request.select) {
+        planning = await planChange(request.repository, baseCommit, candidateCommit);
+        plan = planning.experiments.map(experiment => experiment.id);
+        if (plan.length === 0) {
+          return {
+            schemaVersion: 1, verdict: 'inconclusive' as const,
+            reason: 'No supported experiment matched both a changed hunk and a documented contract',
+            plan, planning, baseCommit, candidateCommit,
+          };
+        }
+      }
       const toolLock = await readFile(lockURL, 'utf8');
       lockSha256 = digest(toolLock);
       [reference, candidate] = await Promise.all([
-        snapshot(request.repository, request.base, toolLock),
-        snapshot(request.repository, request.candidate, toolLock),
+        snapshot(request.repository, baseCommit, toolLock),
+        snapshot(request.repository, candidateCommit, toolLock),
       ]);
     } else {
       if (!original) throw new Error('Missing library investigation to rerun');
@@ -134,18 +177,20 @@ export async function investigateLibrary(request: Request) {
 
     let result: LibraryResult | Inconclusive;
     try {
+      plan = validateLibraryPlan(plan);
+      const oldSuite = original?.environment.replaySha256 === originalSuiteSha256 &&
+        isDeepStrictEqual(plan, libraryPlan);
       if (original && (original.environment.node !== identity.node ||
-          original.environment.replaySha256 !== identity.replaySha256 ||
-          !isDeepStrictEqual(original.plan, libraryPlan))) {
+          (!oldSuite && original.environment.replaySha256 !== identity.replaySha256))) {
         throw new Error('Rerun requires compatible library replay code, plan and Node version');
       }
-      result = await compare(reference, candidate);
+      result = await compare(reference, candidate, plan);
     } catch (error) {
       result = { schemaVersion: 1, verdict: 'inconclusive', reason: error instanceof Error ? error.message : String(error) };
     }
 
     const investigation: LibraryInvestigation = {
-      adapter: libraryFixture, reference, candidate, plan: original?.plan ?? libraryPlan,
+      adapter: libraryFixture, reference, candidate, plan, planning,
       environment: result.verdict === 'inconclusive' && original ? original.environment : identity,
       result, replayOf,
     };
@@ -154,7 +199,7 @@ export async function investigateLibrary(request: Request) {
     const reproduced = previous && previous.verdict !== 'inconclusive' && result.verdict !== 'inconclusive'
       ? isDeepStrictEqual(previous.checks, result.checks) : undefined;
     return {
-      ...result, plan: investigation.plan, runId, baseCommit: reference.commit, candidateCommit: candidate.commit,
+      ...result, plan, planning, runId, baseCommit: reference.commit, candidateCommit: candidate.commit,
       replayOf, reproduced,
     };
   } finally {

@@ -6,8 +6,8 @@ import { libraryFixture } from './library-cases.js';
 
 async function dispatch(args: string[]) {
   const [command, first, second] = args;
-  if (command === 'compare-library' && first && second && args.length === 4) {
-    return investigateLibrary({ repository: first, base: second, candidate: args[3]! });
+  if ((command === 'compare-library' || command === 'plan-library') && first && second && args.length === 4) {
+    return investigateLibrary({ repository: first, base: second, candidate: args[3]!, select: command === 'plan-library' });
   }
   if (command === 'plan' && first && second) {
     const [kind, model] = args.slice(3);
@@ -35,7 +35,7 @@ async function dispatch(args: string[]) {
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | compare-library|plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -49,6 +49,12 @@ try {
   if (json) {
     console.log(JSON.stringify(report, null, 2));
   } else {
+    if ('planning' in report && report.planning) {
+      for (const { id, change, contract } of report.planning.experiments) {
+        console.log(id + ' · ' + change.revision + ' ' + change.path + ':' + change.line +
+          ' → ' + contract.path + ':' + contract.line);
+      }
+    }
     if ('runId' in report) {
       console.log('Investigation ' + report.runId);
       console.log(report.baseCommit.slice(0, 12) + ' → ' + report.candidateCommit.slice(0, 12));

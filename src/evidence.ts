@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { HarnessIdentity, Snapshot } from './revision.js';
 import type { compare, Implementation } from './scenario.js';
 import { libraryFixture, type LibraryCase, type LibraryResult } from './library-cases.js';
+import type { LibraryPlanning } from './library-planner.js';
 
 type Comparison = ReturnType<typeof compare>;
 type SavedComparison = Omit<Comparison, 'callMetric'> & { callMetric?: Comparison['callMetric'] };
@@ -29,6 +30,7 @@ export interface Investigation {
 export interface LibraryInvestigation {
   adapter: typeof libraryFixture;
   plan: LibraryCase[];
+  planning?: LibraryPlanning;
   reference: Snapshot;
   candidate: Snapshot;
   environment: HarnessIdentity;

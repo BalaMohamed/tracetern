@@ -221,6 +221,19 @@ function renderRun(run: RunEvidence) {
     const section = element('section', 'request-section');
     section.append(table);
     main.append(section);
+    if (run.planning) {
+      const details = element('details', 'commands');
+      details.append(element('summary', '', 'Why these checks ran'));
+      const reasons = element('dl', 'command-list');
+      for (const { id, change, contract } of run.planning.experiments) {
+        reasons.append(element('dt', '', libraryLabels[id]));
+        for (const source of [change, contract]) {
+          reasons.append(element('dd', '', source.revision + ' · ' + source.path + ':' + source.line + ' · ' + source.excerpt));
+        }
+      }
+      details.append(reasons);
+      main.append(details);
+    }
   } else if (run.observed) {
     main.append(evidence(run, run.observed));
     const finding = element('section', 'finding');

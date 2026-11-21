@@ -30,6 +30,8 @@ The library adapter reads a committed Query Core tree from a supplied Git reposi
 
 Each side executes the same cache-key checks in a separate Node worker. One check also supplies the candidate with the serialized cache produced by the baseline. The fixed seed, process-local caches, and normalized snapshot timestamp keep the observations repeatable. A broken baseline produces an inconclusive run. A candidate-only contract failure produces a regression. These checks measure cache behavior.
 
+In planned mode, resolve both revision IDs before retrieval. Select a known experiment only when a production hunk and a line from the base documentation both match its rule. Persist the selected IDs and citations. Workers receive only the validated case IDs. Replay uses those IDs and the saved artifacts, so a planner rule edit does not change an existing experiment.
+
 Both adapters store immutable artifacts and observations in the local evidence store. The CLI and MCP replay route by the saved fixture. The browser shows the checks and observed values for library runs. The library replay path loads the saved bundles directly and requires a compatible Node version and adapter fingerprint.
 
 ## From replay to AI

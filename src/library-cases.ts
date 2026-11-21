@@ -9,7 +9,18 @@ export const expectedLookups = {
 
 export type LibraryCase = keyof typeof expectedLookups;
 export const libraryPlan = Object.keys(expectedLookups) as LibraryCase[];
-export type LibraryLookups = Record<LibraryCase, (string | null)[]>;
+export type LibraryLookups = Partial<Record<LibraryCase, (string | null)[]>>;
+
+export function validateLibraryPlan(plan: unknown): LibraryCase[] {
+  if (!Array.isArray(plan) || plan.length === 0 || plan.length > libraryPlan.length) {
+    throw new Error('Expected at least one known library experiment');
+  }
+  const selected = libraryPlan.filter(id => plan.includes(id));
+  if (selected.length !== plan.length || selected.some((id, index) => plan[index] !== id)) {
+    throw new Error('Library experiments must be unique known IDs in suite order');
+  }
+  return selected;
+}
 
 export interface LibraryResult {
   schemaVersion: 1;

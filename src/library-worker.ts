@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { expectedLookups, type LibraryLookups } from './library-cases.js';
+import { expectedLookups, validateLibraryPlan, type LibraryLookups } from './library-cases.js';
 
 type Key = readonly unknown[];
 interface Client {
@@ -16,45 +16,48 @@ interface QueryCore {
   hydrate(client: Client, state: CacheState): void;
 }
 
-const [entry, baselineFile] = process.argv.slice(2);
-if (!entry) throw new Error('Missing library artifact');
+const [entry, savedPlan, baselineFile] = process.argv.slice(2);
+if (!entry || !savedPlan) throw new Error('Missing library artifact or experiment plan');
+const plan = validateLibraryPlan(JSON.parse(savedPlan));
 const core: QueryCore = await import(entry);
 const createClient = () => new core.QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
 const lookup = (client: Client, key: Key) => client.getQueryData(key) ?? null;
 
-const cache = createClient();
-const restored = createClient();
-try {
-  cache.setQueryData(['orders', { status: 'open', page: 2 }], expectedLookups['equivalent-object-keys'][0]);
-  const equivalent = lookup(cache, ['orders', { page: 2, status: 'open' }]);
-  cache.setQueryData(['orders', 'open', 2], expectedLookups['distinct-array-keys'][0]);
-  cache.setQueryData(['orders', 2, 'open'], expectedLookups['distinct-array-keys'][1]);
-  const distinct = [lookup(cache, ['orders', 'open', 2]), lookup(cache, ['orders', 2, 'open'])];
-
-  let state: CacheState;
-  if (baselineFile) {
-    state = JSON.parse(await readFile(baselineFile, 'utf8'));
-  } else {
-    const source = createClient();
-    try {
-      const updatedAt = 1_700_000_000_000;
-      source.setQueryData(['persisted', { status: 'open' }], expectedLookups['restore-baseline-cache'][0], { updatedAt });
-      state = core.dehydrate(source);
-      // Fix the snapshot clock so replay uses the same serialized input.
-      for (const query of state.queries) query.dehydratedAt = updatedAt + 1;
-      state = JSON.parse(JSON.stringify(state));
-    } finally {
-      source.clear();
-    }
-  }
-  core.hydrate(restored, state);
-  const observations: LibraryLookups = {
-    'equivalent-object-keys': [equivalent],
-    'distinct-array-keys': distinct,
-    'restore-baseline-cache': [lookup(restored, ['persisted', { status: 'open' }])],
-  };
-  process.stdout.write(JSON.stringify({ observations, snapshot: baselineFile ? undefined : state }));
-} finally {
-  cache.clear();
-  restored.clear();
+function seedSnapshot(client: Client): CacheState {
+  const updatedAt = 1_700_000_000_000;
+  client.setQueryData(['persisted', { status: 'open' }], expectedLookups['restore-baseline-cache'][0], { updatedAt });
+  const state = core.dehydrate(client);
+  // Fix the snapshot clock so replay uses the same serialized input.
+  for (const query of state.queries) query.dehydratedAt = updatedAt + 1;
+  return JSON.parse(JSON.stringify(state));
 }
+
+const observations: LibraryLookups = {};
+let snapshot: CacheState | undefined;
+for (const id of plan) {
+  const cache = createClient();
+  try {
+    switch (id) {
+      case 'equivalent-object-keys':
+        cache.setQueryData(['orders', { status: 'open', page: 2 }], expectedLookups[id][0]);
+        observations[id] = [lookup(cache, ['orders', { page: 2, status: 'open' }])];
+        break;
+      case 'distinct-array-keys':
+        cache.setQueryData(['orders', 'open', 2], expectedLookups[id][0]);
+        cache.setQueryData(['orders', 2, 'open'], expectedLookups[id][1]);
+        observations[id] = [lookup(cache, ['orders', 'open', 2]), lookup(cache, ['orders', 2, 'open'])];
+        break;
+      case 'restore-baseline-cache': {
+        snapshot = baselineFile ? undefined : seedSnapshot(cache);
+        const state = snapshot ?? JSON.parse(await readFile(baselineFile!, 'utf8'));
+        cache.clear();
+        core.hydrate(cache, state);
+        observations[id] = [lookup(cache, ['persisted', { status: 'open' }])];
+        break;
+      }
+    }
+  } finally {
+    cache.clear();
+  }
+}
+process.stdout.write(JSON.stringify({ observations, snapshot }));

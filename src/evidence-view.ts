@@ -4,6 +4,7 @@ import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { defaultExperiment, type Experiment } from './experiment.js';
 import type { Result } from './evidence.js';
 import { libraryFixture, type LibraryResult } from './library-cases.js';
+import type { LibraryPlanning } from './library-planner.js';
 
 type Completed = Exclude<Result, { verdict: 'inconclusive' }>;
 type Row = Record<string, SQLOutputValue>;
@@ -27,6 +28,7 @@ export interface RunEvidence extends RunSummary {
   plan: Experiment | null;
   observed: Pick<Completed, 'postgres' | 'reads' | 'mismatch' | 'callMetric'> | null;
   checks?: LibraryResult['checks'];
+  planning?: LibraryPlanning;
 }
 
 const summaryColumns = `id, created_at,
@@ -79,6 +81,7 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
         json_extract(payload, '$.candidate.sourcePath') AS source_path,
         json_extract(payload, '$.planner.kind') AS planner,
         json_extract(payload, '$.plan') AS plan,
+        json_extract(payload, '$.planning') AS planning,
         CASE WHEN json_extract(payload, '$.result.verdict') IN ('pass', 'regression')
           THEN json_extract(payload, '$.result') END AS completed
       FROM runs_v1 WHERE id = ?
@@ -90,6 +93,7 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
       return {
         ...summary(row), sourcePath: row.source_path as string, planner: null,
         plan: null, observed: null, checks: result?.checks,
+        planning: typeof row.planning === 'string' ? JSON.parse(row.planning) as LibraryPlanning : undefined,
       };
     }
 

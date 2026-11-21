@@ -63,6 +63,8 @@ TraceTern reads committed Query Core source from Git, bundles each side with its
 
 Run `npm run test:library` for the controlled failure and replay test. Set `TRACETERN_TANSTACK_REPO=.tracetern/tanstack-query` to include the pinned upstream pair. Both tests run without PostgreSQL.
 
+Use `npm run tracetern -- plan-library <repository> <base> <candidate>` to choose a subset of the checks. The rule planner reads committed production hunks and checks them against the query-key and persistence guides at the base revision. It records a source hunk and a documentation line for each selection. The CLI prints those citations, and saved citations are available in the viewer and over MCP. Replay uses the stored selection and bundles. If the planner finds no supported case, it exits 2 with an empty plan and skips execution. See the [review trial](docs/EVALUATION.md).
+
 ## Choose an experiment
 
 The rule baseline selects a read–rename–read experiment for cache-like additions, or two reads otherwise. The local Ollama planner receives the orders requirements and bounded excerpts of added and removed lines. Both planners get one proposal with at most four operations on the same 100-customer fixture.
