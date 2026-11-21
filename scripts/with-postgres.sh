@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Own the cluster for exactly one command. Never attach to a developer database.
 set -euo pipefail
+# MCP hosts may launch with no locale. Use the fixture locale consistently.
+export LC_ALL=C
 if [[ $# -eq 0 ]]; then echo "Expected a command to run" >&2; exit 2; fi
 for tool in initdb pg_ctl; do
   command -v "$tool" >/dev/null || { echo "Missing PostgreSQL server tool: $tool" >&2; exit 2; }

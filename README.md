@@ -60,4 +60,30 @@ Open the loopback URL printed by the viewer. Omit the run ID to open the most re
 
 The viewer reads the local evidence store and needs no database server or model. Older reports remain inspectable with their original totals. Replay and verify require a runner build that matches the saved evidence.
 
+## Connect a coding assistant
+
+Build TraceTern and install the optional MCP adapter.
+
+```sh
+npm run build
+npm ci --prefix integrations/mcp
+```
+
+Configure the host to launch `node integrations/mcp/server.mjs <absolute-repository-path>` over stdio. Use an absolute path to the server entry point if the host starts outside the TraceTern checkout. From the TraceTern root, use this command for Codex.
+
+```sh
+codex mcp add tracetern -- node "$PWD/integrations/mcp/server.mjs" "$PWD"
+```
+
+| Tool | Result |
+| --- | --- |
+| `list_runs` | Up to 25 recent runs in the configured repository |
+| `get_run` | The plan, query counts, first response difference, and candidate source reference for a run ID |
+| `replay_run` | A fresh result from the saved snapshots and plan |
+| `verify_candidate` | A result from running the saved baseline and plan against the full commit ID of a fix |
+
+Include `--enable-execution` after the repository path to register the last two tools. Use that mode with a trusted checkout and PostgreSQL server tools on the host's PATH. Replays and verification use a disposable database and produce separate run IDs. The assistant receives the same evidence projection as the browser. It includes the differing fixture values and Git references, while source snapshots, SQL text, and runner diagnostics stay in the local workflow.
+
+Run `npm --prefix integrations/mcp test` after building to exercise the server through a real stdio client.
+
 [Implementation plan](docs/PLAN.md) · [Architecture and milestone gates](docs/ARCHITECTURE.md)

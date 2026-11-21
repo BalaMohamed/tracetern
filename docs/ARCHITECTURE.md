@@ -11,7 +11,7 @@ TraceTern asks whether an optimization preserves a documented behavior under a w
 | Comparator | Verify the reference response, check ordered rows and current names, count application reads and group PostgreSQL calls made during each request | First milestone |
 | Local investigation store | Save paired service snapshots, provenance and results atomically in SQLite; replay by run ID | Orders revision adapter |
 | Experiment planner | Choose a bounded read/rename plan from fixture requirements and changed source lines; record the validated proposal and model identity | Rule baseline and local Ollama |
-| Assistant integration | Expose compact evidence and rerun operations to the user's coding assistant through MCP | Planned |
+| Assistant integration | Read saved evidence and optionally replay a case or verify a committed fix over MCP stdio | Local adapter |
 | Local browser viewer | Switch between observed reads, compare PostgreSQL query groups and inspect the first response difference or recorded source revision | Loopback viewer |
 
 The CLI is the initial application process. Workers execute separately to prevent module and cache state leaking across implementations. The demo starts a disposable PostgreSQL cluster using a private Unix socket. The orders endpoint listens on an ephemeral loopback port for each worker. This execution model assumes trusted fixture code.
@@ -34,7 +34,9 @@ For Git inputs, record both revision and tree identities, lockfile and build dig
 
 ## Interfaces and scaling
 
-The terminal, browser and MCP adapter should address the same investigation and report schema. A later local service can expose get_evidence(runId), run_experiment(plan) and get_result(runId). The coding assistant owns the patch; TraceTern owns the recorded experiments and verdicts. Bind the viewer to loopback and keep persisted reports local by default.
+The browser and MCP adapter read the same SQLite projection by run ID. It includes the accepted plan, revision references, client call counts and first response difference. The browser serves a loopback HTTP endpoint. The MCP adapter uses stdio and a separate package lock, so its dependencies do not affect target revision compatibility.
+
+The coding assistant writes the patch. TraceTern replays and compares it. The verification command resolves a new candidate commit while reusing the saved baseline and plan. Each execution launches the existing disposable PostgreSQL runner. The result links back to the original investigation.
 
 Parallelize independent investigations within a worker budget. Keep a stateful experiment sequential and use equivalent database settings on both sides. Add repeated latency samples and resource accounting before making performance claims beyond query counts. Bound evidence size and retain failed experiments alongside passes.
 
