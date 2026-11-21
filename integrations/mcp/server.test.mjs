@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
@@ -11,10 +11,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const server = fileURLToPath(new URL('./server.mjs', import.meta.url));
 
-async function connect(t, repository, mode = []) {
+async function connect(t, repository, mode = [], env) {
   const client = new Client({ name: 'tracetern-test', version: '0.1.0' });
   const transport = new StdioClientTransport({
-    command: process.execPath, args: [server, repository, ...mode], stderr: 'pipe',
+    command: process.execPath, args: [server, repository, ...mode], stderr: 'pipe', env,
   });
   t.after(() => transport.close());
   await client.connect(transport);
@@ -78,5 +78,28 @@ test('MCP reads a recorded case, replays it, and verifies a committed fix', { ti
   assert.equal(checked.verdict, 'pass');
   assert.deepEqual(checked.observed.reads.map(read => read.candidate), [2, 2, 2]);
   assert.deepEqual(checked.plan, run.plan);
+  await runner.close();
+});
+
+const upstream = process.env.TRACETERN_TANSTACK_REPO;
+test('MCP reads and replays pinned library evidence with an empty PATH', {
+  timeout: 25_000, skip: upstream ? false : 'Set TRACETERN_TANSTACK_REPO to run the upstream library case',
+}, async t => {
+  const repository = await mkdtemp(join(tmpdir(), 'tracetern-mcp-library-'));
+  t.after(() => rm(repository, { recursive: true, force: true }));
+  const recorded = spawnSync(process.execPath, [
+    join(root, 'dist/src/cli.js'), 'compare-library', resolve(upstream),
+    '33fe7c476276cbefa86786bbcc2d445fdf382614', 'e34066220996e1150535108646b3f24109feece7', '--json',
+  ], { cwd: repository, encoding: 'utf8', timeout: 15_000 });
+  assert.equal(recorded.status, 0, recorded.stderr + recorded.stdout);
+  const { runId, checks } = JSON.parse(recorded.stdout);
+
+  const runner = await connect(t, repository, ['--enable-execution'], { PATH: '' });
+  const details = await runner.callTool({ name: 'get_run', arguments: { runId } });
+  assert.deepEqual(details.structuredContent.run.checks, checks);
+  const replay = await runner.callTool({ name: 'replay_run', arguments: { runId } });
+  assert.equal(replay.structuredContent?.reproduced, true, JSON.stringify(replay));
+  assert.deepEqual(replay.structuredContent.run.checks, checks);
+  assert.equal(replay.structuredContent.run.replayOf, runId);
   await runner.close();
 });

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { defaultExperiment, type Experiment } from './experiment.js';
 import type { Result } from './evidence.js';
+import { libraryFixture, type LibraryResult } from './library-cases.js';
 
 type Completed = Exclude<Result, { verdict: 'inconclusive' }>;
 type Row = Record<string, SQLOutputValue>;
@@ -15,16 +16,17 @@ export interface RunSummary {
   baseCommit: string;
   candidateCommit: string;
   fixtureImplementation: string | null;
+  fixture: string;
   replayOf: string | null;
   verificationOf: string | null;
 }
 
 export interface RunEvidence extends RunSummary {
-  fixture: string;
   sourcePath: string;
   planner: 'rule' | 'ollama' | null;
   plan: Experiment | null;
   observed: Pick<Completed, 'postgres' | 'reads' | 'mismatch' | 'callMetric'> | null;
+  checks?: LibraryResult['checks'];
 }
 
 const summaryColumns = `id, created_at,
@@ -33,7 +35,8 @@ const summaryColumns = `id, created_at,
   json_extract(payload, '$.candidate.commit') AS candidate_commit,
   json_extract(payload, '$.fixtureImplementation') AS implementation,
   json_extract(payload, '$.replayOf') AS replay_of,
-  json_extract(payload, '$.verificationOf') AS verification_of`;
+  json_extract(payload, '$.verificationOf') AS verification_of,
+  json_extract(payload, '$.environment.fixture') AS fixture`;
 
 function read<T>(directory: string, empty: T, inspect: (db: DatabaseSync) => T): T {
   const path = join(directory, 'runs.sqlite');
@@ -56,6 +59,7 @@ function summary(row: Row): RunSummary {
     baseCommit: row.base_commit as string,
     candidateCommit: row.candidate_commit as string,
     fixtureImplementation: row.implementation as string | null,
+    fixture: row.fixture as string,
     replayOf: row.replay_of as string | null,
     verificationOf: row.verification_of as string | null,
   };
@@ -72,7 +76,6 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
   return read(directory, undefined, db => {
     const row = db.prepare(`
       SELECT ${summaryColumns},
-        json_extract(payload, '$.environment.fixture') AS fixture,
         json_extract(payload, '$.candidate.sourcePath') AS source_path,
         json_extract(payload, '$.planner.kind') AS planner,
         json_extract(payload, '$.plan') AS plan,
@@ -82,11 +85,18 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
     `).get(runId);
     if (!row) return undefined;
 
+    if (row.fixture === libraryFixture) {
+      const result = typeof row.completed === 'string' ? JSON.parse(row.completed) as LibraryResult : undefined;
+      return {
+        ...summary(row), sourcePath: row.source_path as string, planner: null,
+        plan: null, observed: null, checks: result?.checks,
+      };
+    }
+
     const result = typeof row.completed === 'string' ? JSON.parse(row.completed) as Completed : null;
     const mismatch = result?.mismatch;
     return {
       ...summary(row),
-      fixture: row.fixture as string,
       sourcePath: row.source_path as string,
       planner: row.planner as RunEvidence['planner'],
       plan: typeof row.plan === 'string' ? JSON.parse(row.plan) as Experiment : result && defaultExperiment,

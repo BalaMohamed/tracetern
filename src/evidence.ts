@@ -6,11 +6,14 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { HarnessIdentity, Snapshot } from './revision.js';
 import type { compare, Implementation } from './scenario.js';
+import { libraryFixture, type LibraryCase, type LibraryResult } from './library-cases.js';
 
 type Comparison = ReturnType<typeof compare>;
 type SavedComparison = Omit<Comparison, 'callMetric'> & { callMetric?: Comparison['callMetric'] };
-export type Result = SavedComparison | { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
+export type Inconclusive = { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
+export type Result = SavedComparison | Inconclusive;
 export interface Investigation {
+  adapter?: never;
   plan?: Experiment;
   planner?: Planner;
   proposal?: Proposal;
@@ -23,6 +26,16 @@ export interface Investigation {
   fixtureImplementation?: Implementation;
 }
 
+export interface LibraryInvestigation {
+  adapter: typeof libraryFixture;
+  plan: LibraryCase[];
+  reference: Snapshot;
+  candidate: Snapshot;
+  environment: HarnessIdentity;
+  result: LibraryResult | Inconclusive;
+  replayOf?: string;
+}
+
 export function openEvidence(directory: string) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(join(directory, 'runs.sqlite'));
@@ -31,16 +44,26 @@ export function openEvidence(directory: string) {
       CREATE TABLE IF NOT EXISTS runs_v1 (
         id TEXT PRIMARY KEY, created_at TEXT NOT NULL, payload TEXT NOT NULL
       ) STRICT`);
+    function load(id: string): Investigation | LibraryInvestigation {
+      const row = db.prepare('SELECT payload FROM runs_v1 WHERE id = ?').get(id);
+      if (typeof row?.payload !== 'string') throw new Error('Unknown investigation: ' + id);
+      return JSON.parse(row.payload) as Investigation | LibraryInvestigation;
+    }
     return {
-      save(record: Investigation) {
+      save(record: Investigation | LibraryInvestigation) {
         const id = randomUUID();
         db.prepare('INSERT INTO runs_v1 VALUES (?, ?, ?)').run(id, new Date().toISOString(), JSON.stringify(record));
         return id;
       },
       load(id: string): Investigation {
-        const row = db.prepare('SELECT payload FROM runs_v1 WHERE id = ?').get(id);
-        if (typeof row?.payload !== 'string') throw new Error('Unknown investigation: ' + id);
-        return JSON.parse(row.payload) as Investigation;
+        const record = load(id);
+        if (record.adapter !== undefined) throw new Error('Expected an Orders investigation');
+        return record;
+      },
+      loadLibrary(id: string): LibraryInvestigation {
+        const record = load(id);
+        if (record.adapter !== libraryFixture) throw new Error('Expected a TanStack Query investigation');
+        return record;
       },
       close: () => db.close(),
     };

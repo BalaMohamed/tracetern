@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { getRun, listRuns, runIdPattern } from '../../dist/src/evidence-view.js';
+import { libraryFixture } from '../../dist/src/library-cases.js';
 
 const [repository, mode, ...extra] = process.argv.slice(2);
 if (!repository || !isAbsolute(repository) || (mode && mode !== '--enable-execution') || extra.length) {
@@ -31,9 +32,13 @@ function failure(text) {
   return { isError: true, content: [{ type: 'text', text }] };
 }
 
-async function runCase(args) {
+async function runCase(args, library) {
+  const runnerArgs = [runner, ...args, '--json'];
+  const [command, ...parameters] = library
+    ? [process.execPath, ...runnerArgs]
+    : ['bash', postgres, process.execPath, ...runnerArgs];
   try {
-    const { stdout } = await execute('bash', [postgres, process.execPath, runner, ...args, '--json'], {
+    const { stdout } = await execute(command, parameters, {
       cwd: repository, timeout: 90_000, maxBuffer: 256 * 1024,
     });
     return JSON.parse(stdout);
@@ -58,7 +63,7 @@ function createServer() {
   });
 
   server.registerTool('get_run', {
-    description: 'Read the saved experiment, grouped PostgreSQL calls, response difference, and candidate source reference.',
+    description: 'Read the saved experiment, public observations, and candidate source reference.',
     inputSchema: z.strictObject({ runId }), annotations: localRead,
   }, async ({ runId }) => {
     try {
@@ -75,7 +80,11 @@ function createServer() {
       if (running) return failure('A TraceTern experiment is already running.');
       running = true;
       try {
-        const result = await runCase(args);
+        const saved = getRun(directory, args[1]);
+        if (!saved) return failure('Investigation not found in the configured repository.');
+        const library = saved.fixture === libraryFixture;
+        if (library && args[0] === 'verify') return failure('Candidate verification is available for Orders experiments.');
+        const result = await runCase(args, library);
         const run = result.runId && getRun(directory, result.runId);
         if (!run) return failure('The runner produced no saved result. Check the revision and runner setup in the terminal.');
         return evidence({ run, reproduced: result.reproduced ?? null, measurementsMatch: result.measurementsMatch ?? null });
@@ -87,7 +96,7 @@ function createServer() {
     }
 
     server.registerTool('replay_run', {
-      description: 'Rerun the exact saved orders experiment with its pinned service snapshots using a disposable local PostgreSQL instance.',
+      description: 'Rerun a saved Orders or TanStack Query experiment with its pinned artifacts.',
       inputSchema: z.strictObject({ runId }), annotations: localExecution,
     }, async ({ runId }) => executeSavedCase(['replay', runId]));
 

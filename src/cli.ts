@@ -1,8 +1,14 @@
 import { compare, implementations } from './scenario.js';
 import { investigate, runWorker } from './investigation.js';
+import { getRun } from './evidence-view.js';
+import { investigateLibrary } from './library.js';
+import { libraryFixture } from './library-cases.js';
 
 async function dispatch(args: string[]) {
   const [command, first, second] = args;
+  if (command === 'compare-library' && first && second && args.length === 4) {
+    return investigateLibrary({ repository: first, base: second, candidate: args[3]! });
+  }
   if (command === 'plan' && first && second) {
     const [kind, model] = args.slice(3);
     if (kind === 'rule' && args.length === 4) {
@@ -24,11 +30,12 @@ async function dispatch(args: string[]) {
     return investigate({ command, runId: first, candidate: second });
   }
   if (command === 'replay' && first && args.length === 2) {
+    if (getRun('.tracetern', first)?.fixture === libraryFixture) return investigateLibrary({ replayOf: first });
     return investigate({ command, runId: first });
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -45,15 +52,21 @@ try {
     if ('runId' in report) {
       console.log('Investigation ' + report.runId);
       console.log(report.baseCommit.slice(0, 12) + ' → ' + report.candidateCommit.slice(0, 12));
-      if (report.plan && report.planner) {
+      if ('planner' in report && report.plan && report.planner) {
         console.log(report.planner.kind + ' plan: ' + report.plan.steps.join(' → ') + ' (customer ' + report.plan.customerId + ')');
       }
-      if (report.verificationOf) console.log('Checking the experiment from ' + report.verificationOf);
+      if ('verificationOf' in report && report.verificationOf) console.log('Checking the experiment from ' + report.verificationOf);
       if (report.reproduced !== undefined) console.log('Matches saved behavior: ' + report.reproduced);
-      if (report.measurementsMatch !== undefined) console.log('Matches saved call counts: ' + report.measurementsMatch);
+      if ('measurementsMatch' in report && report.measurementsMatch !== undefined) console.log('Matches saved call counts: ' + report.measurementsMatch);
     }
     if (report.verdict === 'inconclusive') {
       console.error('Inconclusive: ' + report.reason);
+    } else if ('checks' in report) {
+      console.log(report.fixture);
+      for (const check of report.checks) {
+        console.log(check.id + ': ' + (check.matched ? 'matched' : 'differs') + ' · ' + JSON.stringify(check.candidate));
+      }
+      console.log('Verdict: ' + report.verdict);
     } else {
       console.log('orders-list/v1  ·  ' + report.reference + ' reference → ' + report.candidate);
       for (const row of report.reads) {

@@ -24,6 +24,14 @@ The CLI is the initial application process. Workers execute separately to preven
 4. Check both sides against the fixture contract. A wrong reference or incomplete run makes the experiment inconclusive. A candidate response violating a requirement against a valid baseline yields a regression. A pass covers only the recorded workload. The worker counts calls at the supplied PostgreSQL client during each request. Call counts measure work at that boundary. Latency needs its own measurement.
 5. Emit a versioned report with fixture and implementation identities, environment, expected/observed mismatches and measured reads. The fixed seed and implementation names make a rerun possible from the same checkout. A machine-readable report can be redirected to a caller-chosen file.
 
+## TanStack Query adapter
+
+The library adapter reads a committed Query Core tree from a supplied Git repository. Its separate build lock pins esbuild and the PR's stable-hash dependency. It bundles only library source and compares the dependency's version and integrity against the selected revision's lock. The Orders harness and dependency lock retain their own replay identity.
+
+Each side executes the same cache-key checks in a separate Node worker. One check also supplies the candidate with the serialized cache produced by the baseline. The fixed seed, process-local caches, and normalized snapshot timestamp keep the observations repeatable. A broken baseline produces an inconclusive run. A candidate-only contract failure produces a regression. These checks measure cache behavior.
+
+Both adapters store immutable artifacts and observations in the local evidence store. The CLI and MCP replay route by the saved fixture. The browser shows the checks and observed values for library runs. The library replay path loads the saved bundles directly and requires a compatible Node version and adapter fingerprint.
+
 ## From replay to AI
 
 The first planner baseline is a rule: when a patch extends a value's lifetime across requests, change that value between reads. Retrieval should begin with changed symbols, test names, traces and requirement text. Introduce embeddings only if retrieval misses relevant evidence on held-out repositories.

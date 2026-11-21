@@ -5,6 +5,12 @@ const main = document.querySelector<HTMLElement>('#investigation')!;
 const runs = document.querySelector<HTMLUListElement>('#runs')!;
 const refresh = document.querySelector<HTMLAnchorElement>('#refresh')!;
 const verdicts = { pass: 'Passed', regression: 'Regression', inconclusive: 'Inconclusive' };
+const libraryFixture = 'tanstack-query-keys/v1';
+const libraryLabels = {
+  'equivalent-object-keys': 'Reordered object properties',
+  'distinct-array-keys': 'Distinct array orderings',
+  'restore-baseline-cache': 'Restore the baseline cache snapshot',
+};
 const stages = { cold: 'Cold read', warm: 'Warm read', 'after-rename': 'Read after rename' };
 const queryLabels: Record<keyof QueryGroups, string> = {
   orders: 'Read orders',
@@ -52,7 +58,8 @@ function renderList(summaries: RunSummary[], active: string) {
     stamp.dateTime = run.createdAt;
     row.append(badge(run.verdict), stamp);
     const label = run.fixtureImplementation ?? shortCommit(run.candidateCommit);
-    link.append(row, element('code', 'run-label', shortCommit(run.baseCommit) + ' → ' + label));
+    const prefix = run.fixture === libraryFixture ? 'TanStack Query · ' : '';
+    link.append(row, element('code', 'run-label', prefix + shortCommit(run.baseCommit) + ' → ' + label));
     item.append(link);
     runs.append(item);
   }
@@ -62,9 +69,11 @@ function commands(run: RunEvidence) {
   const details = element('details', 'commands');
   details.append(element('summary', '', 'Replay and source'));
   const list = element('dl', 'command-list');
+  const library = run.fixture === libraryFixture;
   for (const [label, command] of [
-    ['Replay this case', 'npm run demo -- replay ' + run.runId],
-    ['Inspect the candidate at its recorded commit', 'git show ' + run.candidateCommit + ':' + run.sourcePath],
+    ['Replay this case', (library ? 'npm run tracetern' : 'npm run demo') + ' -- replay ' + run.runId],
+    [library ? 'Inspect source in the TanStack checkout' : 'Inspect the candidate at its recorded commit',
+      'git show ' + run.candidateCommit + ':' + run.sourcePath],
   ]) {
     const description = element('dd');
     description.append(element('code', '', command));
@@ -170,7 +179,8 @@ function evidence(run: RunEvidence, observed: NonNullable<RunEvidence['observed'
 function renderRun(run: RunEvidence) {
   const title = element('header', 'run-header');
   const titleLine = element('div', 'title-line');
-  titleLine.append(element('h1', '', 'Orders investigation'), badge(run.verdict));
+  const heading = run.fixture === libraryFixture ? 'TanStack Query investigation' : 'Orders investigation';
+  titleLine.append(element('h1', '', heading), badge(run.verdict));
   const identity = element('p', 'identity');
   identity.append(
     element('span', '', 'Baseline'),
@@ -190,7 +200,28 @@ function renderRun(run: RunEvidence) {
   }
 
   main.replaceChildren(title);
-  if (run.observed) {
+  if (run.checks) {
+    const table = element('table', 'queries');
+    table.append(element('caption', '', 'Public cache lookups'));
+    const header = table.createTHead().insertRow();
+    for (const label of ['Check', 'Expected', 'Baseline', 'Candidate', 'Result']) {
+      const cell = element('th', '', label);
+      cell.scope = 'col';
+      header.append(cell);
+    }
+    const body = table.createTBody();
+    const values = (lookups: readonly (string | null)[]) => lookups.map(value => value ?? 'Cache miss').join(' / ');
+    for (const check of run.checks) {
+      const row = body.insertRow();
+      const label = element('th', '', libraryLabels[check.id]);
+      label.scope = 'row';
+      row.append(label, ...[values(check.expected), values(check.reference), values(check.candidate),
+        check.matched ? 'Matched' : 'Differs'].map(value => element('td', '', value)));
+    }
+    const section = element('section', 'request-section');
+    section.append(table);
+    main.append(section);
+  } else if (run.observed) {
     main.append(evidence(run, run.observed));
     const finding = element('section', 'finding');
     const mismatch = run.observed.mismatch;

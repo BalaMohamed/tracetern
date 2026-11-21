@@ -39,6 +39,30 @@ The worker measures calls to the supplied PostgreSQL client during each request.
 
 For new recordings, CLI and planner changes can alter the recorded harness identity while the saved experiment remains replayable. Replay and verification still require matching replay code, fixture, dependency lock, Node version, and the PostgreSQL version recorded by a completed run. Replay reports whether the saved behavior reproduced and whether the measured call counts matched. Older recordings remain readable and require their original runner build for replay.
 
+## Compare TanStack Query without PostgreSQL
+
+The library adapter exercises the public Query Core cache API. It checks that reordered object properties share a cache entry, reordered array elements keep distinct entries, and both revisions can hydrate the same serialized baseline cache. It reports the observed values for each check.
+
+From TraceTern, install the adapter's locked build tools and fetch the two trusted revisions from [TanStack Query PR #11073](https://github.com/TanStack/query/pull/11073):
+
+```sh
+npm ci --prefix adapters/tanstack --ignore-scripts
+git init .tracetern/tanstack-query
+git -C .tracetern/tanstack-query fetch --no-tags --depth=1 https://github.com/TanStack/query.git \
+  33fe7c476276cbefa86786bbcc2d445fdf382614 e34066220996e1150535108646b3f24109feece7
+```
+
+```sh
+npm run tracetern -- compare-library .tracetern/tanstack-query \
+  33fe7c476276cbefa86786bbcc2d445fdf382614 e34066220996e1150535108646b3f24109feece7
+npm run tracetern -- replay <run-id>
+npm run view -- <run-id>
+```
+
+TraceTern reads committed Query Core source from Git, bundles each side with its pinned build tool, and runs each bundle in its own Node process. The adapter supports the Query Core layout and dependency versions used by these revisions. It records both bundles, their digests, and the source lock digest for each revision. Replay uses the stored bundles and a compatible Node runtime and replay build. Initial comparison is the only step that needs the upstream Git objects and the adapter's build tools.
+
+Run `npm run test:library` for the controlled failure and replay test. Set `TRACETERN_TANSTACK_REPO=.tracetern/tanstack-query` to include the pinned upstream pair. Both tests run without PostgreSQL.
+
 ## Choose an experiment
 
 The rule baseline selects a read–rename–read experiment for cache-like additions, or two reads otherwise. The local Ollama planner receives the orders requirements and bounded excerpts of added and removed lines. Both planners get one proposal with at most four operations on the same 100-customer fixture.
@@ -82,11 +106,11 @@ codex mcp add tracetern -- node "$PWD/integrations/mcp/server.mjs" "$PWD"
 | Tool | Result |
 | --- | --- |
 | `list_runs` | Up to 25 recent runs in the configured repository |
-| `get_run` | The plan, query counts, first response difference, and candidate source reference for a run ID |
+| `get_run` | Saved Orders measurements or TanStack cache checks, plus the candidate source reference |
 | `replay_run` | A fresh result from the saved snapshots and plan |
-| `verify_candidate` | A result from running the saved baseline and plan against the full commit ID of a fix |
+| `verify_candidate` | An Orders result from running the saved baseline and plan against the full commit ID of a fix |
 
-Include `--enable-execution` after the repository path to register the last two tools. Use that mode with a trusted checkout and PostgreSQL server tools on the host's PATH. Replays and verification use a disposable database and produce separate run IDs. The assistant receives the same evidence projection as the browser. It includes the differing fixture values and Git references, while source snapshots, SQL text, and runner diagnostics stay in the local workflow.
+Include `--enable-execution` after the repository path to register the last two tools. Orders replays and verification launch a disposable PostgreSQL instance. TanStack replays launch Node workers directly. Each creates a separate run ID. The assistant receives the same evidence projection as the browser. It includes observed fixture values and Git references, while source snapshots, SQL text, and runner diagnostics stay in the local workflow.
 
 Run `npm --prefix integrations/mcp test` after building to exercise the server through a real stdio client.
 
