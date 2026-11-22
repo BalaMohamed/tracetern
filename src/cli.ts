@@ -37,6 +37,12 @@ async function dispatch(args: string[]) {
       args.length === 6 && args[4] === '--adapter' && args[5] === 'zustand') {
     return investigateLibrary({ repository: first, base: second, candidate: args[3], fixture: zustandFixture });
   }
+  if (command === 'run-suggested' && first && second && args[3] && args.length === 4) {
+    return investigateLibrary({ repository: first, base: second, candidate: args[3], shortlist: true });
+  }
+  if (command === 'verify-library' && first && second && args[3] && args.length === 4) {
+    return investigateLibrary({ verificationOf: first, repository: second, candidate: args[3] });
+  }
   if ((command === 'compare-library' || command === 'plan-library') && first && second && args.length === 4) {
     return investigateLibrary({ repository: first, base: second, candidate: args[3]!, select: command === 'plan-library' });
   }
@@ -70,7 +76,7 @@ async function dispatch(args: string[]) {
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama [model-tag] | --learned <ranking-report>] | models [pick [model-tag] | pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama [model-tag] | --learned <ranking-report>] | models [pick [model-tag] | pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | run-suggested <repository> <base> <candidate> | verify-library <run-id> <repository> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -129,6 +135,10 @@ async function runComparison(args: string[], json: boolean) {
           ' → ' + contract.path + ':' + contract.line);
       }
     }
+    if ('selection' in report && report.selection) {
+      console.log('Selected from saved run ' + report.selection.exampleRunId);
+      for (const target of report.selection.coverage) console.log(target.behavior + ' · ' + target.path);
+    }
     if ('mode' in report) console.log(report.baselineEngine + ' → ' + report.candidateEngine + ' (' + report.mode + ')');
     if ('runId' in report) {
       console.log('Investigation ' + report.runId);
@@ -142,15 +152,16 @@ async function runComparison(args: string[], json: boolean) {
     }
     if (report.verdict === 'inconclusive') {
       console.error('Inconclusive: ' + report.reason);
-    } else if ('checks' in report) {
-      console.log(report.fixture);
+    }
+    if ('checks' in report && report.checks) {
+      if ('fixture' in report) console.log(report.fixture);
       for (const check of report.checks) {
         const outcome = check.contractAdded ? (check.matched ? 'new contract met' : 'new contract failed')
           : check.repaired ? 'baseline failure repaired' : check.matched ? 'matched' : 'differs';
         console.log(check.id + ': ' + outcome + ' · ' + JSON.stringify(check.candidate));
       }
       console.log('Verdict: ' + report.verdict);
-    } else {
+    } else if ('reads' in report) {
       console.log('orders-list/v1  ·  ' + report.reference + ' reference → ' + report.candidate);
       for (const row of report.reads) {
         console.log(row.stage.padEnd(15) + row.reference + ' → ' + row.candidate + ' PostgreSQL client calls');
@@ -159,5 +170,6 @@ async function runComparison(args: string[], json: boolean) {
       if (report.mismatch) console.log(JSON.stringify(report.mismatch));
     }
   }
-  return 'mode' in report && report.reproduced === false ? 2 : { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
+  if (('mode' in report || 'selection' in report) && report.reproduced === false) return 2;
+  return { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
 }

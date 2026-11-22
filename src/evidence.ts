@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { HarnessIdentity, Snapshot } from './revision.js';
 import type { compare, Implementation } from './scenario.js';
 import { isLibraryFixture, type LibraryCase, type LibraryFixture, type LibraryResult } from './library-cases.js';
+import type { CoverageTarget } from './coverage.js';
 import type { LibraryPlanning } from './library-planner.js';
 
 import type { DataFusionInvestigation } from './datafusion.js';
@@ -33,15 +34,19 @@ export interface Investigation {
   fixtureImplementation?: Implementation;
 }
 
+export type LibrarySelection = { exampleRunId: string; coverage: CoverageTarget[] };
+
 export interface LibraryInvestigation {
   adapter: LibraryFixture;
   plan: LibraryCase[];
   planning?: LibraryPlanning;
+  selection?: LibrarySelection;
   reference: Snapshot;
   candidate: Snapshot;
   environment: HarnessIdentity;
-  result: LibraryResult | Inconclusive;
+  result: LibraryResult | (Inconclusive & { checks?: LibraryResult['checks'] });
   replayOf?: string;
+  verificationOf?: string;
 }
 
 export function openEvidence(directory: string) {

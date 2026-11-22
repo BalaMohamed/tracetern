@@ -59,11 +59,34 @@ npm run tracetern -- replay <run-id>
 npm run view -- <run-id>
 ```
 
-TraceTern reads committed Query Core source from Git, bundles each side with its pinned build tool, and runs each bundle in its own Node process. The adapter supports the Query Core layout and dependency versions used by these revisions. It records both bundles, their digests, and the source lock digest for each revision. Replay uses the stored bundles and a compatible Node runtime and replay build. Initial comparison is the only step that needs the upstream Git objects and the adapter's build tools.
+TraceTern reads committed Query Core source from Git, bundles each side with its pinned build tool, and runs each bundle in its own Node process. The adapter supports the Query Core layout and dependency versions used by these revisions. It records both bundles, their digests, and the source lock digest for each revision. Replay uses the stored bundles and a compatible Node runtime and replay build. Comparisons and follow-up verification need the Git objects and adapter build tools.
 
 Run `npm run test:library` for the controlled failure and replay test. Set `TRACETERN_TANSTACK_REPO=.tracetern/tanstack-query` to include the pinned upstream pair. Both tests run without PostgreSQL.
 
 Use `npm run tracetern -- plan-library <repository> <base> <candidate>` to choose a subset of the checks. The rule planner reads committed production hunks and checks them against the query-key and persistence guides at the base revision. It records a source hunk and a documentation line for each selection. The CLI prints those citations, and saved citations are available in the viewer and over MCP. Replay uses the stored selection and bundles. If the planner finds no supported case, it exits 2 with an empty plan and skips execution. See the [review trial](docs/EVALUATION.md).
+
+## Run a saved experiment on a PR
+
+Use a local Git repository that contains the PR merge base and head. TraceTern
+matches the production diff to checks that passed in a saved run, pins both
+revisions, and runs the selected checks. The JSON report records the source
+run ID, the selected checks, and the observations from both revisions. The
+library runner executes code from these revisions, so use source you trust.
+
+```sh
+npm run tracetern -- run-suggested <repository> <merge-base> <pr-head> --json
+npm run tracetern -- replay <run-id> --json
+npm run tracetern -- verify-library <run-id> <repository> <follow-up-commit> --json
+```
+
+Verification uses the saved baseline bundle and experiment plan. It checks
+that the baseline observations reproduce and compares the follow-up against
+the same expected results. Exit codes are 0 for pass, 1 for regression, and
+2 for inconclusive. When both revisions exhibit the same failure with passing
+controls, TraceTern saves the observations and returns 2.
+
+See the [public PR walkthrough](docs/EVALUATION.md#saved-observer-replay-on-tanstack-query-pr-12642)
+for a seed run and a reproducible follow-up.
 
 ## Run a Zustand vanilla store experiment
 

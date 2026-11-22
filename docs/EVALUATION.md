@@ -59,3 +59,56 @@ I gave the lexical retriever only the public unified diff for [PR #27259](https:
 The old experiment is a relevant control for struct-field filtering and scan work. The PR's SQL test exercises a Map key lookup nested inside a struct, which the three-row fixture does not cover. This result establishes related-case retrieval. It gives no coverage or correctness verdict about the PR, and no candidate revision was executed.
 
 I also ran the same diff through the optional Ollama reranker using the installed Huihui Gemma 4 12B variant (local digest `31f91ca54365`). It retained the Parquet pushdown control, the sole suggestion in the lexical shortlist. This verifies the local inference path. A one-candidate trial can't measure ranking improvement.
+
+## Saved observer replay on TanStack Query PR #12642
+
+TraceTern selected the saved `optimistic-query-count` experiment from the PR
+#12633 development run `43ec9c70-e678-46bf-8fc3-37ea96a7b0d7` using the
+`queriesObserver.ts` diff in PR #12642. The trial covers the count of
+optimistic results when the query list expands. The PR addresses placeholder
+render loops. [TanStack Query PR #12642](https://github.com/TanStack/query/pull/12642)
+
+| Revision | One-query control, before → after | Expanded list, before → after | Result |
+|---|---|---|---|
+| PR base `f6689e04be493` | 1 → 1 | 2 → 1 | Existing failure |
+| PR head `944e939d0025` | 1 → 1 | 2 → 1 | Same failure |
+| Local follow-up `14135e16d05e` | 1 → 1 | 2 → 2 | Repair |
+
+The PR comparison `f03e0907-cbb2-46ef-b5cb-39c88fcadf69` was inconclusive and
+replayed with identical evidence. Verifying the original PR head again
+returned the same observations. The local follow-up applied the observer
+change from PR #12633 on top of the PR #12642 head. Verification
+`40f48d2e-b2b9-4c77-9e3c-73062bb087b6` reused the saved baseline and plan,
+passed, and replayed with identical observations. [TanStack Query PR #12633](https://github.com/TanStack/query/pull/12633)
+
+To reproduce, use a local Git repository containing the four pinned upstream
+commits below and install the adapter with
+`npm ci --prefix adapters/tanstack --ignore-scripts`.
+
+```sh
+upstream="$PWD/.tracetern/tanstack-query"
+seed_base=816a0aab2e904cd5364d3b0f278582eccc660318
+seed_head=aab2d96e3a90f8f7515400fe3a86f9da40eb7107
+base=f6689e04be493e2e83f9c93d7e478f92c3e5d328
+head=944e939d002527cbacdc2bd3231fab90a5e7e4d3
+npm run tracetern -- plan-library "$upstream" "$seed_base" "$seed_head" --json
+npm run tracetern -- run-suggested "$upstream" "$base" "$head" --json
+```
+
+Set `run_id` to the `runId` from the second report. This creates the
+follow-up commit in a local fixture repository.
+
+```sh
+follow_up=$(mktemp -d "$PWD/.tracetern/verify-12642.XXXXXX")
+git init "$follow_up"
+git -C "$follow_up" fetch --no-tags --depth=1 "$upstream" "$head"
+git -C "$follow_up" read-tree FETCH_HEAD
+git -C "$upstream" diff "$seed_base" "$seed_head" -- packages/query-core/src/queriesObserver.ts |
+  git -C "$follow_up" apply --cached
+patch_tree=$(git -C "$follow_up" write-tree)
+patch_commit=$(git -C "$follow_up" -c user.name='TraceTern Fixture' \
+  -c user.email=fixture@example.invalid -c commit.gpgSign=false \
+  commit-tree "$patch_tree" -p FETCH_HEAD -m 'Preserve the optimistic query count when the requested list expands')
+git -C "$follow_up" branch follow-up "$patch_commit"
+npm run tracetern -- verify-library "${run_id:?Set run_id from the PR comparison}" "$follow_up" "$patch_commit" --json
+```

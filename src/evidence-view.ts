@@ -2,7 +2,7 @@ import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { defaultExperiment, type Experiment } from './experiment.js';
-import { datafusionFixture, type EvidenceCheck, type Result } from './evidence.js';
+import { datafusionFixture, type EvidenceCheck, type LibrarySelection, type Result } from './evidence.js';
 import { isLibraryFixture } from './library-cases.js';
 import type { LibraryPlanning } from './library-planner.js';
 
@@ -29,6 +29,7 @@ export interface RunEvidence extends RunSummary {
   observed: Pick<Completed, 'postgres' | 'reads' | 'mismatch' | 'callMetric'> | null;
   checks?: EvidenceCheck[];
   planning?: LibraryPlanning;
+  selection?: LibrarySelection;
 }
 
 const summaryColumns = `id, created_at,
@@ -100,7 +101,9 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
         json_extract(payload, '$.planner.kind') AS planner,
         json_extract(payload, '$.plan') AS plan,
         json_extract(payload, '$.planning') AS planning,
+        json_extract(payload, '$.selection') AS selection,
         CASE WHEN json_extract(payload, '$.result.verdict') IN ('pass', 'regression')
+          OR json_type(payload, '$.result.checks') = 'array'
           THEN json_extract(payload, '$.result') END AS completed
       FROM runs_v1 WHERE id = ?
     `).get(runId);
@@ -111,6 +114,7 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
       return {
         ...summary(row), sourcePath: row.source_path as string, planner: null,
         plan: null, observed: null, checks: result?.checks,
+        selection: typeof row.selection === 'string' ? JSON.parse(row.selection) as LibrarySelection : undefined,
         planning: typeof row.planning === 'string' ? JSON.parse(row.planning) as LibraryPlanning : undefined,
       };
     }

@@ -62,10 +62,12 @@ export function hydrate(client: QueryClient, state: ReturnType<typeof dehydrate>
   git('add', '--', 'pnpm-lock.yaml', 'packages/query-core/src/index.ts', 'packages/query-core/src/utils.ts', keyGuide);
   git('commit', '-qm', 'Canonicalize object properties');
   const base = git('rev-parse', 'HEAD');
-  await writeFile(utils, hasher.replace('Object.entries(value).sort(([left], [right]) => left.localeCompare(right))', 'Object.entries(value)'));
+  await writeFile(utils, 'export const hashKey = (key: unknown[]) => JSON.stringify(key);\n');
   git('add', '--', 'packages/query-core/src/utils.ts');
   git('commit', '-qm', 'Remove key canonicalization');
   const record = run(cwd, 1, 'compare-library', repository, base, 'HEAD');
+  assert.match(run(cwd, 2, 'run-suggested', repository, base, 'HEAD').reason, /No saved experiment/);
+  const example = run(cwd, 0, 'compare-library', repository, base, base);
   // A change matched the key contracts. Missing persistence docs and a throwing hydration
   // implementation exercise abstention and prove the unused experiment is never called.
   await writeFile(entry, fixture.replace('  return { queries:', '  throw new Error("Hydration must not run");\n  return { queries:'));
@@ -75,6 +77,22 @@ export function hydrate(client: QueryClient, state: ReturnType<typeof dehydrate>
   const planned = run(cwd, 1, 'plan-library', repository, base, 'HEAD');
   assert.deepEqual(planned.plan, ['equivalent-object-keys', 'distinct-array-keys']);
   assert.equal(run(cwd, 2, 'plan-library', repository, base, base).planning.experiments.length, 0);
+  const selected = run(cwd, 1, 'run-suggested', repository, base, 'HEAD');
+  assert.equal(selected.selection.exampleRunId, example.runId);
+  assert.deepEqual(selected.plan, planned.plan);
+  assert.deepEqual(selected.checks, planned.checks);
+  await writeFile(utils, hasher);
+  git('add', '--', 'packages/query-core/src/utils.ts');
+  git('commit', '-qm', 'Restore key canonicalization');
+  const verified = run(cwd, 0, 'verify-library', selected.runId, repository, 'HEAD');
+  assert.equal(verified.verificationOf, selected.runId);
+  assert.equal(verified.baseCommit, selected.baseCommit);
+  assert.equal(verified.candidateCommit, git('rev-parse', 'HEAD'));
+  assert.deepEqual(verified.plan, selected.plan);
+  assert.deepEqual(verified.selection, selected.selection);
+  assert.deepEqual(verified.checks, selected.checks.map((check: LibraryResult['checks'][number]) => ({
+    ...check, candidate: check.expected, matched: true,
+  })));
   await rename(repository, join(cwd, 'moved-checkout'));
 
   const replay = run(cwd, 1, 'replay', record.runId);
@@ -96,6 +114,9 @@ export function hydrate(client: QueryClient, state: ReturnType<typeof dehydrate>
   assert.deepEqual(projected?.checks, record.checks);
   assert.equal(projected?.observed, null);
   assert.deepEqual(getRun(directory, plannedReplay.runId)?.planning, planned.planning);
+  assert.deepEqual(getRun(directory, selected.runId)?.selection, selected.selection);
+  assert.equal(getRun(directory, verified.runId)?.verificationOf, selected.runId);
+  assert.equal(run(cwd, 0, 'replay', verified.runId).reproduced, true);
   assert.equal(listRuns(directory)[0]?.fixture, 'tanstack-query-keys/v1');
   assert.doesNotMatch(JSON.stringify(projected), /moduleSha256|entries = new Map/);
 });
@@ -227,4 +248,14 @@ test('Zustand null update repair and reverse regression replay with the shared l
   assert.equal(reverted.checks[0]?.matched, false);
   assert.deepEqual(reverted.checks[0]?.candidate, repaired.checks[0]?.reference);
   assert.equal(run(cwd, 1, 'replay', reverted.runId).reproduced, true);
+
+  const existingFailure = run(cwd, 2, 'compare-library', upstream, base, base, '--adapter', 'zustand');
+  assert.match(existingFailure.reason, /Both revisions fail the same documented behavior/);
+  assert.deepEqual(getRun(join(cwd, '.tracetern'), existingFailure.runId)?.checks, existingFailure.checks);
+  const failedReplay = run(cwd, 2, 'replay', existingFailure.runId);
+  assert.equal(failedReplay.reproduced, true);
+  assert.deepEqual(failedReplay.checks, existingFailure.checks);
+  const verified = run(cwd, 0, 'verify-library', existingFailure.runId, upstream, candidate);
+  assert.equal(verified.verificationOf, existingFailure.runId);
+  assert.deepEqual(verified.checks, repaired.checks);
 });
