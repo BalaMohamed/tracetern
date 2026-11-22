@@ -9,6 +9,12 @@ import type { compare, Implementation } from './scenario.js';
 import { isLibraryFixture, type LibraryCase, type LibraryFixture, type LibraryResult } from './library-cases.js';
 import type { LibraryPlanning } from './library-planner.js';
 
+import type { DataFusionInvestigation } from './datafusion.js';
+
+export const datafusionFixture = 'datafusion-parquet-pushdown/v1';
+export type EvidenceCheck = Omit<LibraryResult['checks'][number], 'id'> & { id: string };
+type SavedRun = Investigation | LibraryInvestigation | DataFusionInvestigation;
+
 type Comparison = ReturnType<typeof compare>;
 type SavedComparison = Omit<Comparison, 'callMetric'> & { callMetric?: Comparison['callMetric'] };
 export type Inconclusive = { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
@@ -46,13 +52,13 @@ export function openEvidence(directory: string) {
       CREATE TABLE IF NOT EXISTS runs_v1 (
         id TEXT PRIMARY KEY, created_at TEXT NOT NULL, payload TEXT NOT NULL
       ) STRICT`);
-    function load(id: string): Investigation | LibraryInvestigation {
+    function load(id: string): SavedRun {
       const row = db.prepare('SELECT payload FROM runs_v1 WHERE id = ?').get(id);
       if (typeof row?.payload !== 'string') throw new Error('Unknown investigation: ' + id);
-      return JSON.parse(row.payload) as Investigation | LibraryInvestigation;
+      return JSON.parse(row.payload) as SavedRun;
     }
     return {
-      save(record: Investigation | LibraryInvestigation) {
+      save(record: SavedRun) {
         const id = randomUUID();
         db.prepare('INSERT INTO runs_v1 VALUES (?, ?, ?)').run(id, new Date().toISOString(), JSON.stringify(record));
         return id;
@@ -62,9 +68,14 @@ export function openEvidence(directory: string) {
         if (record.adapter !== undefined) throw new Error('Expected an Orders investigation');
         return record;
       },
+      loadDataFusion(id: string): DataFusionInvestigation {
+        const record = load(id);
+        if (record.adapter !== datafusionFixture) throw new Error('Expected a DataFusion investigation');
+        return record;
+      },
       loadLibrary(id: string): LibraryInvestigation {
         const record = load(id);
-        if (record.adapter === undefined || !isLibraryFixture(record.adapter)) throw new Error('Expected a library investigation');
+        if (record.adapter === undefined || record.adapter === datafusionFixture || !isLibraryFixture(record.adapter)) throw new Error('Expected a library investigation');
         return record;
       },
       close: () => db.close(),

@@ -2,8 +2,8 @@ import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { defaultExperiment, type Experiment } from './experiment.js';
-import type { Result } from './evidence.js';
-import { isLibraryFixture, type LibraryResult } from './library-cases.js';
+import { datafusionFixture, type EvidenceCheck, type Result } from './evidence.js';
+import { isLibraryFixture } from './library-cases.js';
 import type { LibraryPlanning } from './library-planner.js';
 
 type Completed = Exclude<Result, { verdict: 'inconclusive' }>;
@@ -27,7 +27,7 @@ export interface RunEvidence extends RunSummary {
   planner: 'rule' | 'ollama' | null;
   plan: Experiment | null;
   observed: Pick<Completed, 'postgres' | 'reads' | 'mismatch' | 'callMetric'> | null;
-  checks?: LibraryResult['checks'];
+  checks?: EvidenceCheck[];
   planning?: LibraryPlanning;
 }
 
@@ -88,8 +88,8 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
     `).get(runId);
     if (!row) return undefined;
 
-    if (isLibraryFixture(row.fixture)) {
-      const result = typeof row.completed === 'string' ? JSON.parse(row.completed) as LibraryResult : undefined;
+    if (row.fixture === datafusionFixture || isLibraryFixture(row.fixture)) {
+      const result = typeof row.completed === 'string' ? JSON.parse(row.completed) as Pick<RunEvidence, 'checks'> : undefined;
       return {
         ...summary(row), sourcePath: row.source_path as string, planner: null,
         plan: null, observed: null, checks: result?.checks,

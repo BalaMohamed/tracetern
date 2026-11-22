@@ -4,8 +4,14 @@ import { getRun } from './evidence-view.js';
 import { investigateLibrary } from './library.js';
 import { isLibraryFixture, zustandFixture } from './library-cases.js';
 
+import { investigateDataFusion } from './datafusion.js';
+import { datafusionFixture } from './evidence.js';
+
 async function dispatch(args: string[]) {
   const [command, first, second] = args;
+  if (command === 'datafusion' && args.length === 2 && (first === 'broken' || first === 'fixed' || first === 'disabled')) {
+    return investigateDataFusion({ mode: first });
+  }
   if (command === 'compare-library' && first && second && args[3] &&
       args.length === 6 && args[4] === '--adapter' && args[5] === 'zustand') {
     return investigateLibrary({ repository: first, base: second, candidate: args[3], fixture: zustandFixture });
@@ -34,12 +40,14 @@ async function dispatch(args: string[]) {
     return investigate({ command, runId: first, candidate: second });
   }
   if (command === 'replay' && first && args.length === 2) {
-    if (isLibraryFixture(getRun('.tracetern', first)?.fixture)) return investigateLibrary({ replayOf: first });
+    const fixture = getRun('.tracetern', first)?.fixture;
+    if (fixture === datafusionFixture) return investigateDataFusion({ replayOf: first });
+    if (isLibraryFixture(fixture)) return investigateLibrary({ replayOf: first });
     return investigate({ command, runId: first });
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -59,6 +67,7 @@ try {
           ' → ' + contract.path + ':' + contract.line);
       }
     }
+    if ('mode' in report) console.log(report.baselineEngine + ' → ' + report.candidateEngine + ' (' + report.mode + ')');
     if ('runId' in report) {
       console.log('Investigation ' + report.runId);
       console.log(report.baseCommit.slice(0, 12) + ' → ' + report.candidateCommit.slice(0, 12));
@@ -88,7 +97,7 @@ try {
       if (report.mismatch) console.log(JSON.stringify(report.mismatch));
     }
   }
-  process.exitCode = { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
+  process.exitCode = 'mode' in report && report.reproduced === false ? 2 : { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
 } catch (error) {
   const reason = error instanceof Error ? error.message : String(error);
   if (json) console.log(JSON.stringify({ schemaVersion: 1, verdict: 'inconclusive', reason }));

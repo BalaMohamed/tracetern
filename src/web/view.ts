@@ -8,8 +8,9 @@ const verdicts = { pass: 'Passed', regression: 'Regression', inconclusive: 'Inco
 const libraryNames = new Map([
   ['tanstack-query-keys/v1', 'TanStack Query'],
   ['zustand-vanilla/v1', 'Zustand'],
+  ['datafusion-parquet-pushdown/v1', 'DataFusion'],
 ]);
-const libraryLabels = {
+const libraryLabels: Record<string, string> = {
   'equivalent-object-keys': 'Reordered object properties',
   'distinct-array-keys': 'Distinct array orderings',
   'restore-baseline-cache': 'Restore the baseline cache snapshot',
@@ -220,7 +221,7 @@ function renderRun(run: RunEvidence) {
     const values = (lookups: readonly (string | null)[]) => lookups.map(value => value ?? 'Cache miss').join(' / ');
     for (const check of run.checks) {
       const row = body.insertRow();
-      const label = element('th', '', libraryLabels[check.id]);
+      const label = element('th', '', libraryLabels[check.id] ?? check.id);
       label.scope = 'row';
       const outcome = check.contractAdded ? (check.matched ? 'New contract met' : 'New contract failed')
         : check.repaired ? 'Repaired' : check.matched ? 'Matched' : 'Differs';

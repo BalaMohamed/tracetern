@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { getRun, listRuns, runIdPattern } from '../../dist/src/evidence-view.js';
+import { datafusionFixture } from '../../dist/src/evidence.js';
 import { isLibraryFixture } from '../../dist/src/library-cases.js';
 
 const [repository, mode, ...extra] = process.argv.slice(2);
@@ -82,7 +83,7 @@ function createServer() {
       try {
         const saved = getRun(directory, args[1]);
         if (!saved) return failure('Investigation not found in the configured repository.');
-        const library = isLibraryFixture(saved.fixture);
+        const library = isLibraryFixture(saved.fixture) || saved.fixture === datafusionFixture;
         if (library && args[0] === 'verify') return failure('Candidate verification is available for Orders experiments.');
         const result = await runCase(args, library);
         const run = result.runId && getRun(directory, result.runId);

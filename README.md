@@ -82,6 +82,37 @@ npm run tracetern -- replay <run-id>
 
 This adapter captures the standalone `src/vanilla.ts` and records the committed Yarn lock digest. It runs without installing Zustand dependencies. The browser and MCP expose its saved evidence through the same interfaces as the TanStack runs. Set `TRACETERN_ZUSTAND_REPO` to a local repository containing both commits to include it in the library or MCP tests.
 
+## Compare Apache DataFusion Parquet pushdown
+
+This release-level experiment reproduces [DataFusion #24109](https://github.com/apache/datafusion/issues/24109).
+It creates the three-row Parquet file once per recording and gives the exact same bytes to both engines.
+Each executes the adapted struct-field query, an unoptimized reference query, a matching-schema control and a scalar control.
+A second execution of the adapted query reads the scan's `pushdown_rows_pruned` counter from `EXPLAIN ANALYZE VERBOSE`.
+
+On macOS or Linux with uv, run the setup once from TraceTern. It installs two pinned Python 3.12 environments under the ignored `.tracetern/datafusion/venvs/` directory.
+The experiment runs locally without PostgreSQL, Rust, an upstream checkout, or an LLM.
+
+```sh
+bash adapters/datafusion/setup.sh
+npm run tracetern -- datafusion broken
+npm run tracetern -- datafusion disabled
+npm run tracetern -- datafusion fixed
+npm run tracetern -- replay <run-id> --json
+npm run test:datafusion
+```
+
+| Candidate | Returned IDs | Rows pruned in the scan | Exit |
+| --- | --- | ---: | ---: |
+| DataFusion 54.0.0, pushdown enabled | 1, 2, 3 | 0 | 1 |
+| DataFusion 54.0.0, pushdown disabled | 2 | 0 | 1 |
+| DataFusion 55.2.0, pushdown enabled | 2 | 2 | 0 |
+
+The Python binding 55.0.0 embeds engine 55.2.0, which includes the [branch-55 backport of #24125](https://github.com/apache/datafusion/commit/045b590c4822fdbd2ce47eac2f7a5a55b28cde45).
+The counter measures filtering within the scan. This fixture provides no wall-clock speedup estimate.
+SQLite saves the Parquet bytes and digest, candidate mode, engine identities including native module digests, checks and harness digest.
+Replay uses the saved bytes and requires the compatible local runtimes and harness. Missing evidence or an incompatible environment exits 2.
+The browser and MCP can read these checks, and the execution-enabled MCP server can replay them.
+
 ## Choose an experiment
 
 For changes to how query observers combine results, the planner can select an experiment that resolves a pending query while the requested query list grows. The report lists counts before and after resolution for a one-query control, followed by counts for the growing list. A passing control and a baseline-only failure can establish a repair. Set `TRACETERN_OBSERVER_REPO` to a local repository containing both revisions from PR #12633 to run the upstream observer test.
