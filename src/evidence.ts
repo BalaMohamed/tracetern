@@ -11,6 +11,7 @@ import type { CoverageTarget } from './coverage.js';
 import type { LibraryPlanning } from './library-planner.js';
 
 import type { DataFusionInvestigation } from './datafusion.js';
+import { InvestigationError, type ReasonCode } from './execution.js';
 
 export const datafusionFixture = 'datafusion-parquet-pushdown/v1';
 export type EvidenceCheck = Omit<LibraryResult['checks'][number], 'id'> & { id: string };
@@ -18,7 +19,7 @@ type SavedRun = Investigation | LibraryInvestigation | DataFusionInvestigation;
 
 type Comparison = ReturnType<typeof compare>;
 type SavedComparison = Omit<Comparison, 'callMetric'> & { callMetric?: Comparison['callMetric'] };
-export type Inconclusive = { schemaVersion: 1; verdict: 'inconclusive'; reason: string };
+export type Inconclusive = { schemaVersion: 1; verdict: 'inconclusive'; reason: string; reasonCode?: ReasonCode };
 export type Result = SavedComparison | Inconclusive;
 export interface Investigation {
   adapter?: never;
@@ -32,6 +33,7 @@ export interface Investigation {
   replayOf?: string;
   verificationOf?: string;
   fixtureImplementation?: Implementation;
+  referenceOrdersSha256?: string;
 }
 
 export type LibrarySelection = { exampleRunId: string; coverage: CoverageTarget[] };
@@ -58,8 +60,9 @@ export function openEvidence(directory: string) {
         id TEXT PRIMARY KEY, created_at TEXT NOT NULL, payload TEXT NOT NULL
       ) STRICT`);
     function load(id: string): SavedRun {
+      if (!runIdPattern.test(id)) throw new InvestigationError('invalid-input', 'Unknown investigation: invalid run ID');
       const row = db.prepare('SELECT payload FROM runs_v1 WHERE id = ?').get(id);
-      if (typeof row?.payload !== 'string') throw new Error('Unknown investigation: ' + id);
+      if (typeof row?.payload !== 'string') throw new InvestigationError('invalid-input', 'Unknown investigation: ' + id);
       return JSON.parse(row.payload) as SavedRun;
     }
     return {
@@ -90,3 +93,5 @@ export function openEvidence(directory: string) {
     throw error;
   }
 }
+
+export const runIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

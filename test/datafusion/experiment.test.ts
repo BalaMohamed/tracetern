@@ -50,10 +50,14 @@ test('real Parquet scan distinguishes wrong rows, disabled pushdown, and the ups
       try {
         const record = store.loadDataFusion(original.runId);
         const altered = store.save({ ...record, parquet: { ...record.parquet, base64: 'AAAA' } });
-        assert.match(run(2, 'replay', altered).reason, /Parquet digest mismatch/);
+        const badArtifact = run(2, 'replay', altered);
+        assert.match(badArtifact.reason, /Parquet digest mismatch/);
+        assert.equal(badArtifact.reasonCode, 'artifact-invalid');
         const otherRuntime = store.save({ ...record, candidate: { ...record.candidate,
           runtime: { ...record.candidate.runtime, nativeSha256: 'changed' } } });
-        assert.match(run(2, 'replay', otherRuntime).reason, /recorded engines/);
+        const badRuntime = run(2, 'replay', otherRuntime);
+        assert.match(badRuntime.reason, /recorded engines/);
+        assert.equal(badRuntime.reasonCode, 'incompatible-replay');
       } finally {
         store.close();
       }

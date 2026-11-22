@@ -37,7 +37,7 @@ Compare resolves refs to commit and tree IDs, reads Git objects directly, and ru
 
 The worker measures calls to the supplied PostgreSQL client during each request. Headline totals sum the query groups, including Other for unrecognized statements. Fixture setup and the between-request rename are outside the measurement. The JSON field `reads` carries these totals with `callMetric: "postgres-client-calls"`. SQL text and bind values stay out of the report.
 
-For new recordings, CLI and planner changes can alter the recorded harness identity while the saved experiment remains replayable. Replay and verification still require matching replay code, fixture, dependency lock, Node version, and the PostgreSQL version recorded by a completed run. Replay reports whether the saved behavior reproduced and whether the measured call counts matched. Older recordings remain readable and require their original runner build for replay.
+CLI and planner changes can alter the recorded harness identity while the saved experiment remains replayable. Replay and verification require compatible replay code, fixture, dependency lock, Node version, and the PostgreSQL version recorded by a completed run. New runs fingerprint the ordered baseline responses. Replay reports behavior and measured call counts separately. Older recordings remain readable. Recordings with an unsupported replay fingerprint require their original runner build.
 
 ## Compare TanStack Query without PostgreSQL
 
@@ -80,13 +80,27 @@ npm run tracetern -- verify-library <run-id> <repository> <follow-up-commit> --j
 ```
 
 Verification uses the saved baseline bundle and experiment plan. It checks
-that the baseline observations reproduce and compares the follow-up against
-the same expected results. Exit codes are 0 for pass, 1 for regression, and
-2 for inconclusive. When both revisions exhibit the same failure with passing
-controls, TraceTern saves the observations and returns 2.
+that the baseline observations reproduce before running the follow-up, then
+compares the patch against the same expected results. New runs record the
+builder digest alongside the build lock and each revision's source lock digest.
 
 See the [public PR walkthrough](docs/EVALUATION.md#saved-observer-replay-on-tanstack-query-pr-12642)
 for a seed run and a reproducible follow-up.
+
+## Replay commands and results
+
+| Fixture | Start a run | Replay | Verify a follow-up |
+| --- | --- | --- | --- |
+| Orders | `record`, `compare`, or `plan`, with a private PostgreSQL cluster | `replay <run-id>`, with PostgreSQL | `verify <run-id> <commit>`, with Git and PostgreSQL |
+| TanStack Query Core | `compare-library`, `plan-library`, or `run-suggested`, with Git and the pinned builder | `replay <run-id>` from saved bundles | `verify-library <run-id> <repo> <commit>`, with Git and the pinned builder |
+| Zustand vanilla | `compare-library ... --adapter zustand` or `run-suggested`, with Git and the pinned builder | `replay <run-id>` from saved bundles | `verify-library <run-id> <repo> <commit>`, with Git and the pinned builder |
+| DataFusion release fixture | `datafusion <broken\|fixed\|disabled>`, with the pinned Python environments | `replay <run-id>`, with the recorded environments and saved Parquet bytes | Use the pinned release comparison |
+
+Exit 0 means the recorded checks passed. Exit 1 means the candidate violated a checked contract with a valid reference or control. The DataFusion release fixture deliberately includes a known failing reference and reports whether each mode meets the fixture's row and pruning assertions. Exit 2 means the result is inconclusive or a replay did not reproduce the saved verdict and observations.
+
+Inconclusive JSON includes a human-readable `reason` and, for new reports, a `reasonCode`. `no-coverage` means selection abstained. `shared-failure` means both library revisions had the same violation with passing controls and no check established a regression. Other codes distinguish invalid inputs, incompatible replay environments, missing or changed artifacts, malformed observations, failed reference checks, execution errors, timeouts, and cancellation. Older results may omit the code.
+
+A run with two validly captured library bundles can save an inconclusive result for later inspection. Input errors and selection abstentions can exit before a run is saved. Interrupting the CLI during execution cleans up its temporary workspace and leaves prior evidence intact. Replays and follow-up verifications that save evidence get new run IDs linked to the original.
 
 ## Run a Zustand vanilla store experiment
 

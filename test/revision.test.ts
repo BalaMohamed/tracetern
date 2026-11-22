@@ -134,11 +134,18 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
     const changedMeasurements = runWith(alternateCli, 1, 'replay', store.save(saved));
     assert.equal(changedMeasurements.reproduced, true);
     assert.equal(changedMeasurements.measurementsMatch, false);
+    const changedVerdict = run(2, 'replay', store.save({ ...saved, result: { ...saved.result, verdict: 'pass' } }));
+    assert.equal(changedVerdict.reproduced, false);
 
     const legacy = store.load(rule.runId);
     delete legacy.environment.replaySha256;
     const legacyReplay = runWith(alternateCli, 2, 'replay', store.save(legacy));
     assert.match(legacyReplay.reason, /older recording requires the original runner build/);
+
+    const badBaseline = { ...saved, referenceOrdersSha256: 'changed' };
+    const drift = run(2, 'verify', store.save(badBaseline), fixed.candidateCommit);
+    assert.equal(drift.reasonCode, 'reference-failed');
+    assert.match(drift.reason, /reference observations did not reproduce/);
   } finally {
     store.close();
   }
@@ -152,6 +159,7 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
   git('commit', '-qm', 'Return a malformed payload');
   const malformed = run(2, 'compare', base, 'HEAD');
   assert.match(malformed.reason, /Malformed observations/);
+  assert.equal(malformed.reasonCode, 'invalid-observations');
 
   await writeFile(join(cwd, 'package-lock.json'), '{}');
   git('add', '--', 'package-lock.json');
@@ -160,5 +168,6 @@ test('compare trusted commits, retain distinct evidence, and replay after HEAD a
   assert.equal(incompatible.verdict, 'inconclusive');
   assert.ok(incompatible.runId);
   assert.match(incompatible.reason, /dependency lock/);
+  assert.equal(incompatible.reasonCode, 'incompatible-replay');
   assert.match(run(2, 'replay', 'absent').reason, /Unknown investigation/);
 });

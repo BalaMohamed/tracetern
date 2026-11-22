@@ -14,19 +14,20 @@ function isLocalTag(tag: string) {
   return exactTag.test(tag) && !/:(?:[\w.-]*-)?cloud$/i.test(tag);
 }
 
-async function request(path: string, body?: unknown, timeout = 120_000) {
+async function request(path: string, body?: unknown, timeout = 120_000, signal?: AbortSignal) {
+  const deadline = AbortSignal.timeout(timeout);
   const response = await fetch(host + path, {
     ...(body === undefined ? {} : {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     }),
-    redirect: 'error', signal: AbortSignal.timeout(timeout),
+    redirect: 'error', signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
   });
   if (!response.ok) throw new Error('Local Ollama ' + path + ' returned HTTP ' + response.status);
   return response;
 }
 
-async function installedModels(): Promise<Model[]> {
-  const response = await request('/api/tags');
+async function installedModels(signal?: AbortSignal): Promise<Model[]> {
+  const response = await request('/api/tags', undefined, undefined, signal);
   const tags: { models?: Model[] } = await response.json();
   return (tags.models ?? []).filter(item =>
     typeof item.name === 'string' && isLocalTag(item.name) && item.digest && item.size > 0 &&
@@ -87,21 +88,21 @@ export async function pullModel(tag: string, progress: (status: string, percent?
   return { tag, digest: installed.digest, size: installed.size };
 }
 
-async function installedDigest(model: string) {
-  const entry = (await installedModels()).find(item => item.name === model);
+async function installedDigest(model: string, signal?: AbortSignal) {
+  const entry = (await installedModels(signal)).find(item => item.name === model);
   if (!entry) throw new Error('Choose an installed local model using its exact Ollama tag');
   return entry.digest;
 }
 
-export async function generateLocal(model: string, format: object, system: string, prompt: unknown) {
-  const modelDigest = await installedDigest(model);
+export async function generateLocal(model: string, format: object, system: string, prompt: unknown, signal?: AbortSignal) {
+  const modelDigest = await installedDigest(model, signal);
   const response = await request('/api/generate', { model, stream: false, format, options: { temperature: 0 },
-    system, prompt: JSON.stringify(prompt) });
+    system, prompt: JSON.stringify(prompt) }, undefined, signal);
   const result = await response.json();
   if (!result.done || typeof result.response !== 'string' || result.response.length > 4096) {
     throw new Error('Invalid or incomplete local planner response');
   }
   const value: unknown = JSON.parse(result.response);
-  if (await installedDigest(model) !== modelDigest) throw new Error('Local model changed during generation');
+  if (await installedDigest(model, signal) !== modelDigest) throw new Error('Local model changed during generation');
   return { value, modelDigest };
 }

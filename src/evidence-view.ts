@@ -2,13 +2,13 @@ import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { defaultExperiment, type Experiment } from './experiment.js';
-import { datafusionFixture, type EvidenceCheck, type LibrarySelection, type Result } from './evidence.js';
+import { datafusionFixture, runIdPattern, type EvidenceCheck, type LibrarySelection, type Result } from './evidence.js';
 import { isLibraryFixture } from './library-cases.js';
 import type { LibraryPlanning } from './library-planner.js';
 
 type Completed = Exclude<Result, { verdict: 'inconclusive' }>;
 type Row = Record<string, SQLOutputValue>;
-export const runIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export { runIdPattern };
 
 export interface RunSummary {
   runId: string;

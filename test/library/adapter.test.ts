@@ -1,14 +1,20 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { setTimeout as delay } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import { getRun, listRuns } from '../../src/evidence-view.js';
+import { openEvidence } from '../../src/evidence.js';
+import { digest } from '../../src/revision.js';
 import type { LibraryResult } from '../../src/library-cases.js';
 import { keyGuide } from '../../src/library-planner.js';
 
+const execute = promisify(execFile);
 const cli = fileURLToPath(new URL('../../src/cli.js', import.meta.url));
 const env = { ...process.env };
 delete env.TRACETERN_SOCKET;
@@ -66,7 +72,11 @@ export function hydrate(client: QueryClient, state: ReturnType<typeof dehydrate>
   git('add', '--', 'packages/query-core/src/utils.ts');
   git('commit', '-qm', 'Remove key canonicalization');
   const record = run(cwd, 1, 'compare-library', repository, base, 'HEAD');
-  assert.match(run(cwd, 2, 'run-suggested', repository, base, 'HEAD').reason, /No saved experiment/);
+  const noCoverage = run(cwd, 2, 'run-suggested', repository, base, 'HEAD');
+  assert.equal(noCoverage.reasonCode, 'no-coverage');
+  assert.equal(noCoverage.runId, undefined);
+  assert.equal(run(cwd, 2, 'compare-library', repository, 'absent', 'HEAD').reasonCode, 'invalid-input');
+  assert.equal(run(cwd, 2, 'replay', 'absent').reasonCode, 'invalid-input');
   const example = run(cwd, 0, 'compare-library', repository, base, base);
   // A change matched the key contracts. Missing persistence docs and a throwing hydration
   // implementation exercise abstention and prove the unused experiment is never called.
@@ -93,6 +103,28 @@ export function hydrate(client: QueryClient, state: ReturnType<typeof dehydrate>
   assert.deepEqual(verified.checks, selected.checks.map((check: LibraryResult['checks'][number]) => ({
     ...check, candidate: check.expected, matched: true,
   })));
+  git('rm', '--', 'pnpm-lock.yaml');
+  git('commit', '-qm', 'Remove adapter lock from the fixture');
+  assert.equal(run(cwd, 2, 'compare-library', repository, base, 'HEAD').reasonCode, 'invalid-input');
+  const directory = join(cwd, '.tracetern');
+  const store = openEvidence(directory);
+  const saved = store.loadLibrary(selected.runId);
+  try {
+    const alteredReference = structuredClone(saved);
+    alteredReference.result.checks![0]!.reference = ['changed'];
+    const drift = run(cwd, 2, 'verify-library', store.save(alteredReference), repository, verified.candidateCommit);
+    assert.equal(drift.reasonCode, 'reference-failed');
+    assert.equal(drift.checks, undefined);
+
+    const wrongBuilder = structuredClone(saved);
+    wrongBuilder.environment.buildSha256 = 'changed';
+    assert.equal(run(cwd, 2, 'verify-library', store.save(wrongBuilder), repository, 'HEAD').reasonCode, 'incompatible-replay');
+    const wrongLock = structuredClone(saved);
+    wrongLock.environment.lockSha256 = 'changed';
+    assert.equal(run(cwd, 2, 'verify-library', store.save(wrongLock), repository, 'HEAD').reasonCode, 'incompatible-replay');
+  } finally {
+    store.close();
+  }
   await rename(repository, join(cwd, 'moved-checkout'));
 
   const replay = run(cwd, 1, 'replay', record.runId);
@@ -109,7 +141,6 @@ export function hydrate(client: QueryClient, state: ReturnType<typeof dehydrate>
     ['restore-baseline-cache', true],
   ]);
 
-  const directory = join(cwd, '.tracetern');
   const projected = getRun(directory, replay.runId);
   assert.deepEqual(projected?.checks, record.checks);
   assert.equal(projected?.observed, null);
@@ -119,6 +150,78 @@ export function hydrate(client: QueryClient, state: ReturnType<typeof dehydrate>
   assert.equal(run(cwd, 0, 'replay', verified.runId).reproduced, true);
   assert.equal(listRuns(directory)[0]?.fixture, 'tanstack-query-keys/v1');
   assert.doesNotMatch(JSON.stringify(projected), /moduleSha256|entries = new Map/);
+
+  await t.test('overlapping replays preserve immutable and separately indexed evidence', async () => {
+    const attempts = await Promise.all(Array.from({ length: 3 }, async () => {
+      const { stdout } = await execute(process.execPath, [cli, 'replay', verified.runId, '--json'],
+        { cwd, env: { ...env, PATH: '' }, timeout: 30_000 });
+      return JSON.parse(stdout);
+    }));
+    assert.equal(new Set([verified.runId, ...attempts.map(result => result.runId)]).size, 4);
+    for (const attempt of attempts) {
+      assert.equal(attempt.reproduced, true);
+      assert.equal(getRun(directory, attempt.runId)?.replayOf, verified.runId);
+      assert.deepEqual(attempt.checks, verified.checks);
+    }
+    assert.deepEqual(getRun(directory, verified.runId)?.checks, verified.checks);
+  });
+
+  await t.test('rejects invalid artifacts and malformed worker output', () => {
+    const evidence = openEvidence(directory);
+    try {
+      const { candidate, ...missing } = saved;
+      // JSON can contain a partial record even though normal writers require both snapshots.
+      const missingId = evidence.save({ ...missing, candidate: undefined! });
+      assert.equal(run(cwd, 2, 'replay', missingId).reasonCode, 'artifact-invalid');
+      const changed = evidence.save({ ...saved, candidate: { ...candidate, module: candidate.module + '\n// changed' } });
+      assert.equal(run(cwd, 2, 'replay', changed).reasonCode, 'artifact-invalid');
+      const wrongNode = evidence.save({ ...saved, environment: { ...saved.environment, node: 'v0.0.0' } });
+      assert.equal(run(cwd, 2, 'replay', wrongNode).reasonCode, 'incompatible-replay');
+
+      const module = 'console.log("extra output");\n' + candidate.module;
+      const malformed = evidence.save({ ...saved, candidate: { ...candidate, module, moduleSha256: digest(module) } });
+      const result = run(cwd, 2, 'replay', malformed);
+      assert.equal(result.reasonCode, 'invalid-observations');
+      assert.equal(result.replayOf, malformed);
+    } finally {
+      evidence.close();
+    }
+  });
+
+  await t.test('interrupting a worker cleans up and leaves the original run replayable', async t => {
+    const temporary = join(cwd, 'worker-temp');
+    const ready = join(cwd, 'worker-ready');
+    await mkdir(temporary);
+    const module = `
+import { writeFileSync } from 'node:fs';
+writeFileSync(${JSON.stringify(ready)}, String(process.pid));
+await new Promise(() => setInterval(() => {}, 1000));
+`;
+    const evidence = openEvidence(directory);
+    const runId = evidence.save({ ...saved, candidate: { ...saved.candidate, module, moduleSha256: digest(module) } });
+    evidence.close();
+    const before = listRuns(directory);
+    const child = spawn(process.execPath, [cli, 'replay', runId, '--json'], {
+      cwd, env: { ...env, TMPDIR: temporary }, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    t.after(() => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    });
+    const exited = once(child, 'close');
+    let stdout = '';
+    child.stdout.setEncoding('utf8').on('data', chunk => { stdout += chunk; });
+    const deadline = Date.now() + 5000;
+    while (!await stat(ready, { throwIfNoEntry: false }) && Date.now() < deadline && child.exitCode === null) {
+      await delay(10);
+    }
+    assert.ok(await stat(ready, { throwIfNoEntry: false }), 'Candidate worker never started');
+    child.kill('SIGINT');
+    assert.deepEqual(await exited, [2, null]);
+    assert.equal(JSON.parse(stdout).reasonCode, 'cancelled');
+    assert.deepEqual(await readdir(temporary), []);
+    assert.deepEqual(listRuns(directory), before);
+    assert.equal(run(cwd, 0, 'replay', verified.runId).reproduced, true);
+  });
 });
 
 const upstream = process.env.TRACETERN_TANSTACK_REPO;
@@ -250,6 +353,7 @@ test('Zustand null update repair and reverse regression replay with the shared l
   assert.equal(run(cwd, 1, 'replay', reverted.runId).reproduced, true);
 
   const existingFailure = run(cwd, 2, 'compare-library', upstream, base, base, '--adapter', 'zustand');
+  assert.equal(existingFailure.reasonCode, 'shared-failure');
   assert.match(existingFailure.reason, /Both revisions fail the same documented behavior/);
   assert.deepEqual(getRun(join(cwd, '.tracetern'), existingFailure.runId)?.checks, existingFailure.checks);
   const failedReplay = run(cwd, 2, 'replay', existingFailure.runId);

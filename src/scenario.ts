@@ -1,5 +1,6 @@
 import { defaultExperiment, observationStages, type Experiment } from './experiment.js';
 import type { QueryGroups } from './query-groups.js';
+import { InvestigationError } from './execution.js';
 
 export const implementations = ['batch', 'cache', 'n-plus-one'] as const;
 export type Implementation = (typeof implementations)[number];
@@ -35,16 +36,24 @@ export interface Mismatch {
 // The fixture contract is independent of the SQL implementation under test.
 export function firstMismatch(run: Run, plan: Experiment = defaultExperiment): Mismatch | undefined {
   const stages = observationStages(plan);
-  if (run.observations.length !== stages.length ||
+  if (!Array.isArray(run.observations) || run.observations.length !== stages.length ||
       !stages.every((stage, index) => run.observations[index]?.stage === stage)) {
-    throw new Error('Incomplete or unordered replay');
+    throw new InvestigationError('invalid-observations', 'Incomplete or unordered replay');
   }
   for (const frame of run.observations) {
     if (!Array.isArray(frame.orders) || !Number.isSafeInteger(frame.reads) || frame.reads < 0) {
-      throw new Error('Malformed observations for ' + frame.stage);
+      throw new InvestigationError('invalid-observations', 'Malformed observations for ' + frame.stage);
     }
     if (frame.orders.some(row => !row || !Number.isSafeInteger(row.id) || typeof row.customerName !== 'string')) {
-      throw new Error('Malformed order in ' + frame.stage);
+      throw new InvestigationError('invalid-observations', 'Malformed order in ' + frame.stage);
+    }
+    if (frame.queryGroups !== undefined) {
+      const groups = frame.queryGroups;
+      const counts = [groups?.orders, groups?.customer, groups?.customerBatch, groups?.other];
+      if (counts.some(count => !Number.isSafeInteger(count) || count < 0) ||
+          counts.reduce((sum, count) => sum + count, 0) !== frame.reads) {
+        throw new InvestigationError('invalid-observations', 'Invalid query groups for ' + frame.stage);
+      }
     }
   }
   for (const [readIndex, frame] of run.observations.entries()) {
@@ -64,8 +73,8 @@ export function firstMismatch(run: Run, plan: Experiment = defaultExperiment): M
 }
 
 export function compare(reference: Run, candidate: Run, plan: Experiment = defaultExperiment) {
-  if (reference.postgres !== candidate.postgres) throw new Error('Database versions differ');
-  if (firstMismatch(reference, plan)) throw new Error('Reference violates the fixture contract');
+  if (reference.postgres !== candidate.postgres) throw new InvestigationError('incompatible-replay', 'Database versions differ');
+  if (firstMismatch(reference, plan)) throw new InvestigationError('reference-failed', 'Reference violates the fixture contract');
   const mismatch = firstMismatch(candidate, plan);
   return {
     schemaVersion: 1,

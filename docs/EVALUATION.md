@@ -81,9 +81,9 @@ change from PR #12633 on top of the PR #12642 head. Verification
 `40f48d2e-b2b9-4c77-9e3c-73062bb087b6` reused the saved baseline and plan,
 passed, and replayed with identical observations. [TanStack Query PR #12633](https://github.com/TanStack/query/pull/12633)
 
-To reproduce, use a local Git repository containing the four pinned upstream
-commits below and install the adapter with
-`npm ci --prefix adapters/tanstack --ignore-scripts`.
+To reproduce from a clean TraceTern checkout, install the locked dependencies
+and fetch the four pinned upstream objects. These commands need Git and the
+Node adapter build tools.
 
 ```sh
 upstream="$PWD/.tracetern/tanstack-query"
@@ -91,6 +91,11 @@ seed_base=816a0aab2e904cd5364d3b0f278582eccc660318
 seed_head=aab2d96e3a90f8f7515400fe3a86f9da40eb7107
 base=f6689e04be493e2e83f9c93d7e478f92c3e5d328
 head=944e939d002527cbacdc2bd3231fab90a5e7e4d3
+npm ci
+npm ci --prefix adapters/tanstack --ignore-scripts
+git init "$upstream"
+git -C "$upstream" fetch --no-tags --depth=1 https://github.com/TanStack/query.git \
+  "$seed_base" "$seed_head" "$base" "$head"
 npm run tracetern -- plan-library "$upstream" "$seed_base" "$seed_head" --json
 npm run tracetern -- run-suggested "$upstream" "$base" "$head" --json
 ```
@@ -111,4 +116,18 @@ patch_commit=$(git -C "$follow_up" -c user.name='TraceTern Fixture' \
   commit-tree "$patch_tree" -p FETCH_HEAD -m 'Preserve the optimistic query count when the requested list expands')
 git -C "$follow_up" branch follow-up "$patch_commit"
 npm run tracetern -- verify-library "${run_id:?Set run_id from the PR comparison}" "$follow_up" "$patch_commit" --json
+```
+
+The comparison exits 2 with `reasonCode: "shared-failure"`. The verification
+exits 0. Save the verification's `runId` as `verification_id`. The next
+commands move the target repositories out of their original paths and replay
+from the bundles in the TraceTern evidence store. The replays need the
+compiled CLI and compatible Node, with no Git, builder, model, or PostgreSQL.
+Both report `reproduced: true`. The comparison replay still exits 2.
+
+```sh
+mv "$upstream" "$upstream.replay-copy"
+mv "$follow_up" "$follow_up.replay-copy"
+node dist/src/cli.js replay "$run_id" --json
+node dist/src/cli.js replay "$verification_id" --json
 ```

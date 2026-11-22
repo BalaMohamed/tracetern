@@ -31,7 +31,7 @@ function changes(before: string, after: string) {
   return after.split('\n').map(line => line.trim()).filter(line => line && !existing.has(line)).join('\n').slice(0, 8000);
 }
 
-export async function propose(planner: Planner, reference: Snapshot, candidate: Snapshot): Promise<Proposal> {
+export async function propose(planner: Planner, reference: Snapshot, candidate: Snapshot, signal?: AbortSignal): Promise<Proposal> {
   const added = changes(reference.module, candidate.module);
   const removed = changes(candidate.module, reference.module);
   const version = 'orders-planner/v1';
@@ -40,7 +40,7 @@ export async function propose(planner: Planner, reference: Snapshot, candidate: 
     const experiment: Experiment = { steps: cacheChange ? ['read','rename','read'] : ['read','read'], customerId: 1 };
     return { planner, version, experiment };
   }
-  const { value, modelDigest } = await generateLocal(planner.model, schema, instructions, { removed, added });
+  const { value, modelDigest } = await generateLocal(planner.model, schema, instructions, { removed, added }, signal);
   const experiment = validateExperiment(value);
   return { planner, version, modelDigest, temperature: 0, experiment };
 }

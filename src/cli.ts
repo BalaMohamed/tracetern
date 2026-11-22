@@ -10,6 +10,10 @@ import { datafusionFixture } from './evidence.js';
 import { rankerWeights, rankLearnedExperiments } from './experiment-ranker.js';
 import { rankExperiments, suggestExperiments } from './retrieval.js';
 import { modelCommand, selectedModel } from './model-picker.js';
+import { inconclusive, InvestigationError } from './execution.js';
+
+const cancellation = new AbortController();
+const cancel = () => cancellation.abort();
 
 async function readDiff(path: string) {
   const file = await open(path);
@@ -31,54 +35,56 @@ async function readDiff(path: string) {
 async function dispatch(args: string[]) {
   const [command, first, second] = args;
   if (command === 'datafusion' && args.length === 2 && (first === 'broken' || first === 'fixed' || first === 'disabled')) {
-    return investigateDataFusion({ mode: first });
+    return investigateDataFusion({ mode: first }, undefined, cancellation.signal);
   }
   if (command === 'compare-library' && first && second && args[3] &&
       args.length === 6 && args[4] === '--adapter' && args[5] === 'zustand') {
-    return investigateLibrary({ repository: first, base: second, candidate: args[3], fixture: zustandFixture });
+    return investigateLibrary({ repository: first, base: second, candidate: args[3], fixture: zustandFixture }, cancellation.signal);
   }
   if (command === 'run-suggested' && first && second && args[3] && args.length === 4) {
-    return investigateLibrary({ repository: first, base: second, candidate: args[3], shortlist: true });
+    return investigateLibrary({ repository: first, base: second, candidate: args[3], shortlist: true }, cancellation.signal);
   }
   if (command === 'verify-library' && first && second && args[3] && args.length === 4) {
-    return investigateLibrary({ verificationOf: first, repository: second, candidate: args[3] });
+    return investigateLibrary({ verificationOf: first, repository: second, candidate: args[3] }, cancellation.signal);
   }
   if ((command === 'compare-library' || command === 'plan-library') && first && second && args.length === 4) {
-    return investigateLibrary({ repository: first, base: second, candidate: args[3]!, select: command === 'plan-library' });
+    return investigateLibrary({ repository: first, base: second, candidate: args[3]!, select: command === 'plan-library' }, cancellation.signal);
   }
   if (command === 'plan' && first && second) {
     const [kind, model] = args.slice(3);
     if (kind === 'rule' && args.length === 4) {
-      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind } });
+      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind } }, cancellation.signal);
     }
     if (kind === 'ollama' && (args.length === 4 || args.length === 5)) {
       const tag = model ?? await selectedModel();
       if (!tag) throw new Error('Select a local model with models pick or pass its exact tag');
-      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind, model: tag } });
+      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind, model: tag } }, cancellation.signal);
     }
     throw new Error('Usage: tracetern plan <base> <candidate> rule|ollama <model-tag>');
   }
   if (command === 'compare' && first && second && args.length === 3) {
-    return investigate({ command, base: first, candidate: second });
+    return investigate({ command, base: first, candidate: second }, cancellation.signal);
   }
   if (command === 'record' && args.length === 2) {
     const implementation = implementations.find(value => value === first);
-    if (implementation) return investigate({ command, implementation });
+    if (implementation) return investigate({ command, implementation }, cancellation.signal);
   }
   if (command === 'verify' && first && second && args.length === 3) {
-    return investigate({ command, runId: first, candidate: second });
+    return investigate({ command, runId: first, candidate: second }, cancellation.signal);
   }
   if (command === 'replay' && first && args.length === 2) {
     const fixture = getRun('.tracetern', first)?.fixture;
-    if (fixture === datafusionFixture) return investigateDataFusion({ replayOf: first });
-    if (isLibraryFixture(fixture)) return investigateLibrary({ replayOf: first });
-    return investigate({ command, runId: first });
+    if (!fixture) throw new InvestigationError('invalid-input', 'Unknown investigation or invalid run ID');
+    if (fixture === datafusionFixture) return investigateDataFusion({ replayOf: first }, undefined, cancellation.signal);
+    if (isLibraryFixture(fixture)) return investigateLibrary({ replayOf: first }, cancellation.signal);
+    return investigate({ command, runId: first }, cancellation.signal);
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama [model-tag] | --learned <ranking-report>] | models [pick [model-tag] | pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | run-suggested <repository> <base> <candidate> | verify-library <run-id> <repository> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new InvestigationError('invalid-input', 'Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama [model-tag] | --learned <ranking-report>] | models [pick [model-tag] | pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | run-suggested <repository> <base> <candidate> | verify-library <run-id> <repository> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
-  return compare(await runWorker('batch'), await runWorker(name));
+  return compare(await runWorker('batch', undefined, undefined, cancellation.signal),
+    await runWorker(name, undefined, undefined, cancellation.signal));
 }
 
 const args = process.argv.slice(2);
@@ -115,13 +121,18 @@ try {
     }
     process.exitCode = report.suggestions.length ? 0 : 2;
   } else {
+    process.on('SIGINT', cancel);
+    process.on('SIGTERM', cancel);
     process.exitCode = await runComparison(args, json);
   }
 } catch (error) {
-  const reason = error instanceof Error ? error.message : String(error);
-  if (json) console.log(JSON.stringify({ schemaVersion: 1, verdict: 'inconclusive', reason }));
-  else console.error('Inconclusive: ' + reason);
+  const result = inconclusive(error);
+  if (json) console.log(JSON.stringify(result));
+  else console.error('Inconclusive: ' + result.reason);
   process.exitCode = 2;
+} finally {
+  process.off('SIGINT', cancel);
+  process.off('SIGTERM', cancel);
 }
 
 async function runComparison(args: string[], json: boolean) {
@@ -170,6 +181,6 @@ async function runComparison(args: string[], json: boolean) {
       if (report.mismatch) console.log(JSON.stringify(report.mismatch));
     }
   }
-  if (('mode' in report || 'selection' in report) && report.reproduced === false) return 2;
+  if ('reproduced' in report && report.reproduced === false) return 2;
   return { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
 }
