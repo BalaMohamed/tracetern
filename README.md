@@ -117,30 +117,33 @@ The browser and MCP can read these checks, and the execution-enabled MCP server 
 
 Save a unified Git diff, then run `npm run tracetern -- suggest change.patch --json`.
 TraceTern searches the completed original runs in the current evidence store.
-It ranks supported experiments by terms in the changed production code and the paths they appear in.
-Each result includes the matching paths and terms, the known scope of the saved experiment, and a run ID to replay.
+It recognizes a small set of behavior patterns in changed code and checks for the named assertions in each saved result.
+A missing observation can produce an abstention. A related result can be retrieved across repository layouts.
+Each suggestion includes the changed path, the applicable assertions, and a run ID to replay.
 Replays, follow-up verifications, and identical repeats of the same fixture, revisions, mode and plan add no extra examples.
 An unmatched diff exits 2. Recommendations describe prior evidence, and replay runs the saved case against its original inputs.
 
 ## Browse and use local Ollama models
 
-Start Ollama with its default loopback listener. The terminal catalog shows exact tags, approximate download sizes and which models are already installed.
-TraceTern uses Ollama's local model store for downloads.
+Start Ollama with its default loopback listener. The terminal picker shows 27 suggested variants using the [Ollama library](https://ollama.com/library) popularity and model pages reviewed on November 22, 2026. It sorts by estimated RAM fit and then the curated order.
+The estimate reserves 35% of detected RAM. Context length, other workloads, and accelerator memory can change actual fit.
+TraceTern uses Ollama's local model store for downloads and saves the selected tag in the checkout's ignored evidence directory.
 
 ```sh
 npm run tracetern -- models
-npm run tracetern -- models pull qwen2.5-coder:1.5b
-npm run tracetern -- suggest change.patch --ollama qwen2.5-coder:1.5b --json
+npm run tracetern -- models pick
+npm run tracetern -- models pick qwen2.5-coder:1.5b
+npm run tracetern -- suggest change.patch --ollama --json
 ```
 
-The optional Ollama step reranks or abstains from the lexical shortlist using the diff and supported experiment scopes.
-The JSON response includes the original lexical order and the model tag and digest when inference ran.
-Use `suggest` without `--ollama` for the model-free baseline. The Ollama output can only refer to shortlisted saved experiments.
+Choose an installed model or enter a model tag. Selecting an uninstalled tag downloads it before saving the selection. The installed list then includes it.
+Pass an explicit tag after `--ollama` to override the selection for one run, or omit the flag to use model-free coverage retrieval.
+The optional Ollama step reranks the eligible shortlist. Its JSON includes the original order and exact model tag and digest.
 Installed model weights remain unchanged. Training a ranker would require independent relevance labels on distinct changes and evaluation on held-out repositories.
 
 ## Evaluate experiment ranking
 
-The [PR ranking benchmark](evaluation/ranking/README.md) provides two datasets of public changes with relevance labels.
+The [PR ranking benchmark](evaluation/ranking/README.md) provides three datasets of public changes with relevance labels.
 Its benchmark compares keyword retrieval, a trained logistic ranker and optional local Ollama inference on held-out repositories.
 
 ## Choose an experiment

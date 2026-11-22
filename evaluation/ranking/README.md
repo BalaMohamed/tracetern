@@ -65,3 +65,24 @@ The learned ranker skipped the [SQL unparser change](https://github.com/apache/d
 Ollama used the installed Huihui Gemma 4 12B variant with digest `31f91ca54365`. It abstained on the direct [struct filter pushdown change](https://github.com/apache/datafusion/pull/20822) and the [struct schema pruning control](https://github.com/apache/datafusion/pull/22960). It returned all four families for a [test-only PR](https://github.com/pmndrs/zustand/pull/3442). The [complete run](results.json) includes the exact tag, digest, weights and per-PR outputs.
 
 The learned ranker made one fewer irrelevant recommendation on these examples. The learned model is available through the benchmark command.
+
+## Saved coverage holdout
+
+The [coverage dataset](cases-coverage.json) adds nine PRs from Arrow Rust, Reselect, and stable-hash. All three repositories are new to the earlier benchmarks. The logistic model uses the same 16 training PRs and settings as the expanded run. The Comet and SWR examples below guided rule development and contribute no holdout observations.
+
+For the three-way comparison, benchmark each ranker on the same four experiment families and apply the same coverage filter to each result. The filter can remove a ranked candidate. The benchmark keeps the original order and measures what changes after filtering. It uses the fixed catalog of known experiment assertions, independent of the locally available runs. The product command also checks that the specific saved run contains passing assertions, and can retrieve a supported run across repositories even when a keyword ranker missed it.
+
+| Ranker | Useful first picks, before → after | Irrelevant first picks, before → after | Correct abstentions, before → after |
+| --- | ---: | ---: | ---: |
+| Keyword | 1 → 1 | 3 → 0 | 4 → 7 |
+| Learned | 1 → 1 | 3 → 0 | 4 → 7 |
+| Ollama | 1 → 1 | 4 → 0 | 3 → 7 |
+
+Each method retained the Arrow Parquet case as a control and missed the direct stable-hash case. Coverage filtering can rule out unsupported candidates but cannot restore an experiment absent from the input order. The product command did recover the saved Query Core experiment for the fresh stable-hash PR using its recorded checks. The [full report](results-coverage.json) includes the raw and filtered outputs and the Ollama model digest. The sample measures selection on a hard-negative-heavy holdout.
+
+For [Comet #6067](https://github.com/apache/datafusion-comet/pull/6067), the product reported a join conversion-error requirement and abstained. The saved DataFusion run measures filtered IDs and rows pruned during a Parquet scan. It has no join or expected conversion-error check. For [SWR #1429](https://github.com/vercel/swr/pull/1429), the product retrieved a saved Query Core run that passed both reordered-object equivalence and distinct-array-order checks. That offers an experiment for the same hashing behavior. Evaluating the SWR change itself would require running the check with SWR.
+
+```sh
+bash evaluation/ranking/fetch.sh coverage
+npm run evaluate:ranking --silent -- --dataset coverage --ollama <installed-model-tag>
+```

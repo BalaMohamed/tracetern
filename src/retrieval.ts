@@ -1,7 +1,8 @@
 import { generateLocal } from './ollama.js';
 import { datafusionFixture } from './evidence.js';
 import { libraryFixture, zustandFixture } from './library-cases.js';
-import { retrievalRuns } from './evidence-view.js';
+import { getRun, retrievalRuns } from './evidence-view.js';
+import { coverageTargets, coveredTargets } from './coverage.js';
 
 export const experimentProfiles = [
   { fixture: datafusionFixture, paths: /(?:datasource-parquet|physical-expr-adapter)\/src\//,
@@ -49,7 +50,9 @@ export function wordsIn(text: string) {
 }
 
 export function suggestExperiments(diff: string, directory = '.tracetern') {
-  const files = [...productionChanges(diff)].map(([path, lines]) => [path, wordsIn(lines.join(' '))] as const);
+  const changes = productionChanges(diff);
+  const targets = coverageTargets(changes);
+  const files = [...changes].map(([path, lines]) => [path, wordsIn(lines.join(' '))] as const);
   const runs = retrievalRuns(directory);
   const suggestions = experimentProfiles.flatMap(profile => {
     const matching = [...files].filter(([path]) => profile.paths.test(path)).flatMap(([path, words]) => {
@@ -57,24 +60,32 @@ export function suggestExperiments(diff: string, directory = '.tracetern') {
       return concepts.length >= 2 ? [{ path, concepts }] : [];
     });
     const cases = runs.filter(run => run.fixture === profile.fixture);
-    const exemplar = cases.find(run => run.verdict === 'pass') ?? cases[0];
-    if (!exemplar || matching.length === 0) return [];
+    const eligible = cases.flatMap(run => {
+      const evidence = getRun(directory, run.runId);
+      const coverage = evidence ? coveredTargets(evidence, targets) : [];
+      return coverage.length ? [{ run, coverage }] : [];
+    });
+    const exemplar = eligible.find(item => item.run.verdict === 'pass') ?? eligible[0];
+    if (!exemplar) return [];
     const score = new Set(matching.flatMap(match => match.concepts)).size;
-    return [{ fixture: profile.fixture, scope: profile.scope, score, matching,
-      distinctCases: cases.length, example: exemplar }];
+    return [{ fixture: profile.fixture, scope: profile.scope, score, matching, coverage: exemplar.coverage,
+      distinctCases: cases.length, example: exemplar.run }];
   }).sort((left, right) => right.score - left.score || left.fixture.localeCompare(right.fixture));
   return {
     schemaVersion: 1,
-    method: 'lexical/v1',
+    method: 'coverage/v1',
+    targets,
     suggestions,
-    reason: suggestions.length ? null : 'No completed saved experiment matched the changed paths and code terms.',
+    reason: suggestions.length ? null : targets.length
+      ? 'No saved experiment demonstrates the recognized behavior.'
+      : 'No supported behavior could be identified in the changed production code.',
   };
 }
 
 export async function rankExperiments(diff: string, model: string, directory = '.tracetern') {
   const baseline = suggestExperiments(diff, directory);
   if (baseline.suggestions.length === 0) return baseline;
-  const candidates = baseline.suggestions.map(({ fixture, scope, matching }) => ({ fixture, scope, matching }));
+  const candidates = baseline.suggestions.map(({ fixture, scope, matching, coverage }) => ({ fixture, scope, matching, coverage }));
   const { order, modelDigest } = await rankExperimentIds(diff, model, candidates);
   const byId = new Map(baseline.suggestions.map(item => [item.fixture, item]));
   const suggestions = order.map(id => byId.get(id)!);

@@ -1,16 +1,8 @@
+import { totalmem } from 'node:os';
+import { catalogForMemory } from './model-catalog.js';
+
 const host = 'http://127.0.0.1:11434';
 const exactTag = /^(?:[\w.-]+\/)*[\w.-]+:[\w.-]+$/;
-const catalog = [
-  { tag: 'qwen2.5-coder:0.5b', downloadGB: 0.4 },
-  { tag: 'qwen2.5-coder:1.5b', downloadGB: 0.99 },
-  { tag: 'qwen2.5-coder:3b', downloadGB: 1.9 },
-  { tag: 'qwen2.5-coder:7b', downloadGB: 4.7 },
-  { tag: 'qwen2.5-coder:14b', downloadGB: 9 },
-  { tag: 'qwen2.5-coder:32b', downloadGB: 20 },
-  { tag: 'qwen3:4b', downloadGB: 2.5 },
-  { tag: 'qwen3:8b', downloadGB: 5.2 },
-];
-
 interface Model {
   name: string;
   digest: string;
@@ -45,7 +37,7 @@ export async function browseModels() {
   const installed = await installedModels();
   const names = new Set(installed.map(model => model.name));
   return { installed: installed.map(({ name, digest, size }) => ({ tag: name, digest, size })),
-    catalog: catalog.map(model => ({ ...model, installed: names.has(model.tag) })) };
+    ...catalogForMemory(totalmem() / 1e9, names) };
 }
 
 export async function pullModel(tag: string, progress: (status: string, percent?: number) => void) {

@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "dataset": "coverage",
+  "trainingCases": 16,
+  "trainingPairs": 64,
+  "testCases": 9,
+  "weights": [
+    -1.3423412069094829,
+    3.876253182513229,
+    1.2674227967411775,
+    2.0586292566226563,
+    0.7266523659793007
+  ],
+  "model": "ttempvnn/Huihui-gemma-4-12B-it-qat-q4_0-unquantized-abliterated-Q4-K-M:latest",
+  "modelDigest": "31f91ca54365ce66faac667e15f270b8826ff5b1827869c77dacc8cd8b9a0839",
+  "metrics": {
+    "keyword": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 3,
+      "abstentions": 5,
+      "correctAbstentions": 4,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "learned": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 3,
+      "abstentions": 5,
+      "correctAbstentions": 4,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "ollama": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 4,
+      "abstentions": 4,
+      "correctAbstentions": 3,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "keywordCovered": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 0,
+      "abstentions": 8,
+      "correctAbstentions": 7,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "learnedCovered": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 0,
+      "abstentions": 8,
+      "correctAbstentions": 7,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "ollamaCovered": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 0,
+      "abstentions": 8,
+      "correctAbstentions": 7,
+      "meanNdcgOnUsefulCases": 0.5
+    }
+  },
+  "cases": [
+    {
+      "repo": "apache/arrow-rs",
+      "pr": 10859,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "keywordCovered": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learnedCovered": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollamaCovered": [
+          "datafusion-parquet-pushdown/v1"
+        ]
+      }
+    },
+    {
+      "repo": "apache/arrow-rs",
+      "pr": 11975,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    },
+    {
+      "repo": "apache/arrow-rs",
+      "pr": 11701,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    },
+    {
+      "repo": "apache/arrow-rs",
+      "pr": 12090,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    },
+    {
+      "repo": "reduxjs/reselect",
+      "pr": 626,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1"
+        ],
+        "ollama": [],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    },
+    {
+      "repo": "reduxjs/reselect",
+      "pr": 537,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    },
+    {
+      "repo": "shuding/stable-hash",
+      "pr": 20,
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    },
+    {
+      "repo": "shuding/stable-hash",
+      "pr": 16,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    },
+    {
+      "repo": "shuding/stable-hash",
+      "pr": 7,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "keywordCovered": [],
+        "learnedCovered": [],
+        "ollamaCovered": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "split": "test",
+      "repo": "apache/arrow-rs",
+      "pr": 10859,
+      "base": "1c2c390875ee7f9edc6cecd6c8dfe044d5334e58",
+      "head": "257753e2d32f6f398dc6db14f8195b3447dd4abe",
+      "diffSha256": "57ecab81ace05055f82473ad42fb20ff1467a7017ec947dd51b93c52c8d295e3",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "The saved scan checks that row filtering preserves the expected IDs. Its single predicate cannot verify ordered fusion or repeated decoding."
+    },
+    {
+      "split": "test",
+      "repo": "apache/arrow-rs",
+      "pr": 11975,
+      "base": "b231cf15efa5dbbbe4ae8503849aa6ab3cfc4e0c",
+      "head": "214bb1a6c6947acb61cbf30efd8029706f907815",
+      "diffSha256": "c3eeb1a42a147ce144e83537685db6fdbe5aa2109b0710cc049da668f3b7ddcc",
+      "labels": {},
+      "rationale": "Consolidating Bloom filter decoding and byte validation does not change the row predicate exercised by the saved scan."
+    },
+    {
+      "split": "test",
+      "repo": "apache/arrow-rs",
+      "pr": 11701,
+      "base": "3327fbef1c3381a149e9a413a5bb22813e11639e",
+      "head": "ff0ddde94fbd86a98826f3f9db5bab161cfeaa64",
+      "diffSha256": "c6ff2160ca38132db3eea393cdbc6cf7d40b9ee953c4b00c215461f8713a3fac",
+      "labels": {},
+      "rationale": "Releasing retained Bloom bitset capacity needs a memory observation. The saved experiment observes returned IDs and row pruning."
+    },
+    {
+      "split": "test",
+      "repo": "apache/arrow-rs",
+      "pr": 12090,
+      "base": "cc58320c2da359b757814db5a9651397d829b601",
+      "head": "9b436e46b3f7fa4c68b7c5d7c3f55dd4a769c8bd",
+      "diffSha256": "75d9622c67ea39a1f97a9afaa92cd84284c4cb4c14d51bbbf6a1ab7bdf13f083",
+      "labels": {},
+      "rationale": "This exposes a Bloom filter metadata-reader API. The saved experiment uses ordinary Parquet row filtering and does not call the metadata API."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/reselect",
+      "pr": 626,
+      "base": "634ef5144ce04e8493d0fba077a4daecccd44971",
+      "head": "9d7290f410e99c5e12e899dd46176825bd5d472a",
+      "diffSha256": "7e6d1d6345bf21ae3fa565a2380579c97860caab131d4505fd1125f2549e0343",
+      "labels": {},
+      "rationale": "Custom selector memoizer injection needs to verify selector construction and dispatch to the chosen memoizer. No saved experiment exercises that contract."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/reselect",
+      "pr": 537,
+      "base": "bb27a02d6526992eaf6ef74ab6575a35afaac55b",
+      "head": "835990ea25a17918ce6bbc4b3563af69b164c910",
+      "diffSha256": "5c731d90bcef920346c65c202f2c9146d7f8c37382954d78b7d2f6a89d69155d",
+      "labels": {},
+      "rationale": "The changed contract concerns inferred selector and memoizer types. The saved experiments do not compile a type-level consumer."
+    },
+    {
+      "split": "test",
+      "repo": "shuding/stable-hash",
+      "pr": 20,
+      "base": "1b314f2cc3e9449bc8d49e417670175cf9afd42a",
+      "head": "f74c0e8f73e622a45e2becb3f6137123fa4d9768",
+      "diffSha256": "85c433e4caedb879005057e1a67680ce7f8d487cefd4c74d59d87e64d6cb17d2",
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "rationale": "The patch changes the constructor comparisons that select Array and Object hashing. The saved identity assertions exercise both branches."
+    },
+    {
+      "split": "test",
+      "repo": "shuding/stable-hash",
+      "pr": 16,
+      "base": "56246f8b29d6f53093ccb70d7cbde805618fc4d8",
+      "head": "d3019f06779535b8cb2cb5b54c6e9a8931348fa4",
+      "diffSha256": "4e88bda165e864f8fc1d9450efab777d8623a0a6854b7ab21fee3cc5fbb6d506",
+      "labels": {},
+      "rationale": "The package export map must expose type declarations. The runtime key identity experiment does not check package type resolution."
+    },
+    {
+      "split": "test",
+      "repo": "shuding/stable-hash",
+      "pr": 7,
+      "base": "abb070b98713764b76354c148a5ddffe678e2eac",
+      "head": "32e0b9b66ac7e7bc3d0cf598360b728b02f13c3e",
+      "diffSha256": "777d0fb2df0a298a8a444d792c49cfca0f57755970523e78212bc2422ffb4f3d",
+      "labels": {},
+      "rationale": "This adds test infrastructure and tests. It makes no change to the library runtime."
+    }
+  ]
+}

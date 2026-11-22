@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 import { digest } from './revision.js';
-import { experimentProfiles, rankExperimentIds } from './retrieval.js';
+import { coverageTargets, keepCovered } from './coverage.js';
+import { experimentProfiles, productionChanges, rankExperimentIds } from './retrieval.js';
 import { benchmarkInput, fitRanker, scoreOrder, type Grade } from './experiment-ranker.js';
 
 interface Case {
@@ -44,7 +45,7 @@ export function validateCases(cases: Case[]) {
   if (new Set(repos.values()).size !== 2) throw new Error('Expected separate train and test repositories');
 }
 
-type Dataset = 'pilot' | 'expanded';
+type Dataset = 'pilot' | 'expanded' | 'coverage';
 
 export function expandCases(pilot: Case[], additions: Case[]) {
   validateCases(pilot);
@@ -70,16 +71,22 @@ async function readCases(path: string) {
 
 async function benchmark(dataset: Dataset, model?: string) {
   const pilot = await readCases('evaluation/ranking/cases.json');
-  const cases = dataset === 'expanded'
-    ? expandCases(pilot, await readCases('evaluation/ranking/cases-expanded.json'))
-    : pilot;
+  let cases = pilot;
+  if (dataset !== 'pilot') {
+    cases = expandCases(pilot, await readCases('evaluation/ranking/cases-expanded.json'));
+  }
+  if (dataset === 'coverage') {
+    const earlier = [...cases, ...pilot.filter(item => item.split === 'test')];
+    cases = expandCases(earlier, await readCases('evaluation/ranking/cases-coverage.json'));
+  }
   validateCases(cases);
 
   async function inputs(item: Case) {
     const path = join('.tracetern/ranking-diffs', item.repo.replace('/', '-') + '-' + item.pr + '.diff');
     const diff = await readFile(path);
     if (digest(diff) !== item.diffSha256) throw new Error('Diff digest mismatch for ' + item.repo + '#' + item.pr);
-    return benchmarkInput(diff.toString('utf8'));
+    const patch = diff.toString('utf8');
+    return { ...benchmarkInput(patch), targets: coverageTargets(productionChanges(patch)) };
   }
   const train = cases.filter(item => item.split === 'train');
   const test = cases.filter(item => item.split === 'test');
@@ -90,7 +97,7 @@ async function benchmark(dataset: Dataset, model?: string) {
   let modelDigest: string | undefined;
   const rows: (Pick<Case, 'repo' | 'pr' | 'labels'> & { orders: Record<string, string[]> })[] = [];
   for (const item of test) {
-    const { excerpt, candidates } = await inputs(item);
+    const { excerpt, candidates, targets } = await inputs(item);
     const ordered = (score: (candidate: typeof candidates[number]) => number, threshold: number) => candidates
       .map(candidate => ({ fixture: candidate.fixture, score: score(candidate) }))
       .filter(candidate => candidate.score >= threshold)
@@ -113,6 +120,11 @@ async function benchmark(dataset: Dataset, model?: string) {
       }
       process.stderr.write('Ollama ' + item.repo + '#' + item.pr + ' ' + Math.round(performance.now() - start) + 'ms\n');
     }
+    if (dataset === 'coverage') {
+      for (const [method, order] of Object.entries(orders)) {
+        orders[method + 'Covered'] = keepCovered(order, targets);
+      }
+    }
     rows.push({ repo: item.repo, pr: item.pr, labels: item.labels, orders });
   }
   const metrics = Object.fromEntries(Object.keys(rows[0]!.orders).map(method => {
@@ -133,8 +145,8 @@ async function benchmark(dataset: Dataset, model?: string) {
 if (import.meta.main) {
   try {
     const { values } = parseArgs({ options: { dataset: { type: 'string', default: 'pilot' }, ollama: { type: 'string' } } });
-    if (values.dataset !== 'pilot' && values.dataset !== 'expanded') {
-      throw new Error('Dataset must be pilot or expanded');
+    if (values.dataset !== 'pilot' && values.dataset !== 'expanded' && values.dataset !== 'coverage') {
+      throw new Error('Dataset must be pilot, expanded or coverage');
     }
     console.log(JSON.stringify(await benchmark(values.dataset, values.ollama), null, 2));
   } catch (error) {

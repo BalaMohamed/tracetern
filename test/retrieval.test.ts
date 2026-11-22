@@ -5,22 +5,26 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { datafusionFixture, openEvidence } from '../src/evidence.js';
+import { datafusionFixture, openEvidence, type LibraryInvestigation } from '../src/evidence.js';
 import type { DataFusionInvestigation } from '../src/datafusion.js';
 import { rankExperiments, suggestExperiments } from '../src/retrieval.js';
 
-import { zustandFixture } from '../src/library-cases.js';
+import { libraryFixture, zustandFixture } from '../src/library-cases.js';
 
 const probe = {
   commit: 'a'.repeat(40), sourcePath: 'schema_rewriter.rs', pushdown: true,
   runtime: { binding: 'fixture', engine: 'fixture', python: 'fixture', arrow: 'fixture', nativeSha256: 'fixture' },
   observations: { nested: [2], pruned: 2, unoptimized: [2], inferred: [2], scalar: [2] },
 };
+function checks(...ids: string[]) {
+  return ids.map(id => ({ id, expected: ['2'], reference: ['2'], candidate: ['2'], matched: true }));
+}
 const evidence: DataFusionInvestigation = {
   adapter: datafusionFixture, fixtureImplementation: 'fixed', reference: probe, candidate: probe,
   environment: { fixture: datafusionFixture, harnessSha256: 'fixture' },
   parquet: { sha256: 'fixture', base64: '' },
-  result: { schemaVersion: 1, fixture: datafusionFixture, verdict: 'pass', checks: [] },
+  result: { schemaVersion: 1, fixture: datafusionFixture, verdict: 'pass',
+    checks: checks('adapted struct IDs', 'rows pruned by Parquet pushdown') },
 };
 function patch(path: string, line: string) {
   return `diff --git a/${path} b/${path}
@@ -91,7 +95,8 @@ test('local reranking can reverse the lexical order without changing saved evide
     lockSha256: 'lock', moduleSha256: 'module', module: 'saved module' };
   store.save(evidence);
   const zustand = store.save({ adapter: zustandFixture, reference: snapshot, candidate: snapshot,
-    plan: ['zustand-null-update'], result: { fixture: zustandFixture, schemaVersion: 1, verdict: 'pass', checks: [] },
+    plan: ['zustand-null-update'], result: { fixture: zustandFixture, schemaVersion: 1, verdict: 'pass',
+      checks: [{ id: 'zustand-null-update', expected: ['2'], reference: ['2'], candidate: ['2'], matched: true }] },
     environment: { fixture: zustandFixture, node: process.version, harnessSha256: 'harness', lockSha256: 'lock' },
   });
   store.close();
@@ -105,4 +110,37 @@ test('local reranking can reverse the lexical order without changing saved evide
   assert.deepEqual('lexicalOrder' in report && report.lexicalOrder, [datafusionFixture, zustandFixture]);
   assert.deepEqual(report.suggestions.map(item => item.fixture), [zustandFixture, datafusionFixture]);
   assert.equal(report.suggestions[0]?.example.runId, zustand);
+});
+
+test('coverage requires observed checks and rejects adjacent unsupported behavior', async t => {
+  const cwd = await mkdtemp(join(tmpdir(), 'tracetern-coverage-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const store = openEvidence(cwd);
+  const snapshot = { commit: probe.commit, tree: 'tree', sourcePath: 'src/utils/hash.ts',
+    lockSha256: 'lock', moduleSha256: 'module', module: 'saved module' };
+  const checkIds = ['equivalent-object-keys', 'distinct-array-keys'] as const;
+  const cacheRun = {
+    adapter: libraryFixture, reference: snapshot, candidate: snapshot,
+    plan: [...checkIds],
+    result: { fixture: libraryFixture, schemaVersion: 1 as const, verdict: 'pass' as const,
+      checks: checkIds.map(id => ({ ...checks(id)[0]!, id })) },
+    environment: { fixture: libraryFixture, node: process.version, harnessSha256: 'harness', lockSha256: 'lock' },
+  } satisfies LibraryInvestigation;
+  store.save(evidence);
+  const original = store.save(cacheRun);
+  store.save({ ...cacheRun, plan: ['equivalent-object-keys'],
+    result: { ...cacheRun.result, checks: cacheRun.result.checks.slice(0, 1) } } satisfies LibraryInvestigation);
+  store.close();
+
+  const comet = patch('native/core/src/execution/operators/dynamic_filter/parquet_reader/schema_adapter.rs',
+    'preserveConversionError(schema)');
+  const blocked = suggestExperiments(comet, cwd);
+  assert.equal(blocked.targets[0]?.behavior, 'Parquet join conversion errors');
+  assert.deepEqual(blocked.suggestions, []);
+
+  const swr = patch('src/utils/hash.ts', 'return stableHash(key)');
+  const suggestions = suggestExperiments(swr, cwd).suggestions;
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0]?.example.runId, original);
+  assert.deepEqual(suggestions[0]?.coverage[0]?.checks, checkIds);
 });

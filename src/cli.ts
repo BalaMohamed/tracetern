@@ -8,7 +8,7 @@ import { isLibraryFixture, zustandFixture } from './library-cases.js';
 import { investigateDataFusion } from './datafusion.js';
 import { datafusionFixture } from './evidence.js';
 import { rankExperiments, suggestExperiments } from './retrieval.js';
-import { browseModels, pullModel } from './ollama.js';
+import { modelCommand, selectedModel } from './model-picker.js';
 
 async function readDiff(path: string) {
   const file = await open(path);
@@ -44,8 +44,10 @@ async function dispatch(args: string[]) {
     if (kind === 'rule' && args.length === 4) {
       return investigate({ command: 'compare', base: first, candidate: second, planner: { kind } });
     }
-    if (kind === 'ollama' && model && args.length === 5) {
-      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind, model } });
+    if (kind === 'ollama' && (args.length === 4 || args.length === 5)) {
+      const tag = model ?? await selectedModel();
+      if (!tag) throw new Error('Select a local model with models pick or pass its exact tag');
+      return investigate({ command: 'compare', base: first, candidate: second, planner: { kind, model: tag } });
     }
     throw new Error('Usage: tracetern plan <base> <candidate> rule|ollama <model-tag>');
   }
@@ -67,7 +69,7 @@ async function dispatch(args: string[]) {
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama <model-tag>] | models [pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama [model-tag]] | models [pick [model-tag] | pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -78,38 +80,25 @@ const json = flag >= 0;
 if (json) args.splice(flag, 1);
 try {
   if (args[0] === 'models') {
-    if (args.length === 1) {
-      const report = await browseModels();
-      if (json) console.log(JSON.stringify(report, null, 2));
-      else {
-        console.log('Installed local models');
-        for (const model of report.installed) console.log('  ' + model.tag + ' · ' + (model.size / 1e9).toFixed(2) + ' GB');
-        if (!report.installed.length) console.log('  None');
-        console.log('Ollama catalog · approximate download size');
-        for (const model of report.catalog) {
-          console.log('  ' + model.tag + ' · ' + model.downloadGB + ' GB' + (model.installed ? ' · installed' : ''));
-        }
-      }
-    } else if (args.length === 3 && args[1] === 'pull' && args[2]) {
-      const result = await pullModel(args[2], (status, percent) => {
-        if (!json) console.error(status + (percent === undefined ? '' : ' · ' + percent + '%'));
-      });
-      console.log(json ? JSON.stringify(result, null, 2) : 'Installed ' + result.tag + ' · ' + result.digest);
-    } else {
-      throw new Error('Usage: tracetern models [pull <model-tag>] [--json]');
-    }
+    await modelCommand(args.slice(1), json);
   } else if (args[0] === 'suggest') {
     const [, patch, flag, model] = args;
-    if (!patch || (args.length !== 2 && !(args.length === 4 && flag === '--ollama' && model))) {
-      throw new Error('Usage: tracetern suggest <diff-file> [--ollama <model-tag>] [--json]');
+    if (!patch || (args.length !== 2 && !(flag === '--ollama' && (args.length === 3 || args.length === 4)))) {
+      throw new Error('Usage: tracetern suggest <diff-file> [--ollama [model-tag]] [--json]');
     }
+    const tag = flag === '--ollama' ? model ?? await selectedModel() : undefined;
+    if (flag === '--ollama' && !tag) throw new Error('Select a local model with models pick or pass its exact tag');
     const diff = await readDiff(patch);
-    const report = model ? await rankExperiments(diff, model) : suggestExperiments(diff);
+    const report = tag ? await rankExperiments(diff, tag) : suggestExperiments(diff);
     if (json) console.log(JSON.stringify(report, null, 2));
-    else if (report.reason) console.log(report.reason);
+    else if (report.reason) {
+      console.log(report.reason);
+      for (const target of report.targets) console.log(target.behavior + ' · ' + target.path);
+    }
     else for (const item of report.suggestions) {
       console.log(item.fixture + ' · ' + item.distinctCases + ' distinct saved cases');
       console.log(item.scope);
+      for (const rule of item.coverage) console.log('Covered: ' + rule.behavior + ' · ' + rule.path);
       for (const match of item.matching) console.log(match.path + ' · ' + match.concepts.join(', '));
       console.log('Replay saved case: tracetern replay ' + item.example.runId);
     }
