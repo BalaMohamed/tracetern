@@ -78,13 +78,43 @@ function commands(run: RunEvidence) {
   details.append(element('summary', '', 'Replay and source'));
   const list = element('dl', 'command-list');
   const library = libraryNames.get(run.fixture);
-  for (const [label, command] of [
+  const entries: [label: string, command: string][] = [
     ['Replay this case', (library ? 'npm run tracetern' : 'npm run demo') + ' -- replay ' + run.runId],
-    [library ? 'Inspect source in the ' + library + ' checkout' : 'Inspect the candidate at its recorded commit',
-      'git show ' + run.candidateCommit + ':' + run.sourcePath],
-  ]) {
+  ];
+  if (run.sourcePath && run.candidateCommit) {
+    const source = (run.candidateCommit + ':' + run.sourcePath).replaceAll("'", "'\\''");
+    entries.push([library ? 'Inspect source in the ' + library + ' checkout' : 'Inspect the candidate at its recorded commit',
+      "git show '" + source + "'"]);
+  }
+  if (run.libraryPlan && run.checks?.length &&
+      (run.verdict !== 'inconclusive' || run.reasonCode === 'shared-failure' || !run.reasonCode)) {
+    entries.push(['Verify a patch with TRACETERN_LIBRARY_REPO and TRACETERN_FIX_COMMIT set',
+      'npm run tracetern -- verify-library ' + run.runId + ' "$TRACETERN_LIBRARY_REPO" "$TRACETERN_FIX_COMMIT"']);
+  } else if (!library && run.observed) {
+    entries.push(['Verify a patch with TRACETERN_FIX_COMMIT set',
+      'npm run demo -- verify ' + run.runId + ' "$TRACETERN_FIX_COMMIT"']);
+  }
+  for (const [label, command] of entries) {
     const description = element('dd');
-    description.append(element('code', '', command));
+    const copy = element('button', 'copy-command', 'Copy');
+    copy.type = 'button';
+    const status = element('span', 'copy-status');
+    status.setAttribute('role', 'status');
+    const code = element('code', '', command);
+    copy.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(command);
+        status.textContent = 'Copied';
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(code);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        status.textContent = 'Command selected for copying';
+      }
+    };
+    description.append(code, copy, status);
     list.append(element('dt', '', label), description);
   }
   details.append(list);
@@ -206,8 +236,17 @@ function renderRun(run: RunEvidence) {
     lineage.append(runLink(parent, parent.slice(0, 8)));
     title.append(lineage);
   }
+  if (run.selection) {
+    const selected = element('p', 'lineage', 'Selected from ');
+    selected.append(runLink(run.selection.exampleRunId, run.selection.exampleRunId.slice(0, 8)));
+    title.append(selected);
+    const coverage = element('ul', 'coverage');
+    for (const target of run.selection.coverage) coverage.append(element('li', '', target.behavior + ' · ' + target.path));
+    title.append(coverage);
+  }
 
   main.replaceChildren(title);
+  if (run.reason) main.append(element('p', 'status-note', run.reason));
   if (run.checks) {
     const table = element('table', 'queries');
     table.append(element('caption', '', 'Observed library behavior'));
@@ -223,12 +262,15 @@ function renderRun(run: RunEvidence) {
       const row = body.insertRow();
       const label = element('th', '', libraryLabels[check.id] ?? check.id);
       label.scope = 'row';
+      const sameFailure = !check.matched && check.reference.every((value, index) => value === check.candidate[index]) &&
+        check.reference.length === check.candidate.length;
+      const repair = run.libraryPlan ? 'Repaired · controls passed' : 'Repaired';
       const outcome = check.contractAdded ? (check.matched ? 'New contract met' : 'New contract failed')
-        : check.repaired ? 'Repaired' : check.matched ? 'Matched' : 'Differs';
+        : check.repaired ? repair : check.matched ? 'Matched' : sameFailure ? 'Both differ' : 'Differs';
       row.append(label, ...[values(check.expected), values(check.reference), values(check.candidate),
         outcome].map(value => element('td', '', value)));
     }
-    const section = element('section', 'request-section');
+    const section = element('section', 'request-section check-table');
     section.append(table);
     main.append(section);
     if (run.planning) {
@@ -263,7 +305,7 @@ function renderRun(run: RunEvidence) {
       finding.append(element('p', '', 'Every recorded read matched the fixture’s order and freshness requirements.'));
     }
     main.append(finding);
-  } else {
+  } else if (!run.reason) {
     main.append(element('p', 'status-note', 'The runner marked this comparison inconclusive. Replay locally to inspect the diagnostic.'));
   }
   main.append(commands(run));

@@ -75,6 +75,7 @@ test('viewer serves saved and legacy evidence without source or process diagnost
 
   const failed = await (await request('/api/runs/' + inconclusive)).text();
   assert.equal(JSON.parse(failed).observed, null);
+  assert.equal(JSON.parse(failed).reason, 'The runner could not reach a verdict.');
   assert.doesNotMatch(failed, /private-runner-diagnostic-canary/);
 
   const page = await request('/?run=' + legacy);

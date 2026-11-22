@@ -107,6 +107,10 @@ h1 { font-size: clamp(1.8rem, 3.25vw, 3.05rem); letter-spacing: -.065em; line-he
 .command-list { margin: .6rem 0 0; font-size: .82rem; }
 .command-list dt { margin-top: .75rem; color: var(--muted); }
 .command-list dd { margin: .28rem 0 0; }
+.command-list code, .coverage { overflow-wrap: anywhere; }
+.copy-command { margin-inline-start: .55rem; }
+.copy-status:not(:empty) { margin-inline-start: .45rem; }
+.check-table { overflow-x: auto; }
 .empty { padding: 1.2rem 0; }
 .empty code { font-size: .86rem; }
 

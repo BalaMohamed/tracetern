@@ -235,8 +235,11 @@ codex mcp add tracetern -- node "$PWD/integrations/mcp/server.mjs" "$PWD"
 | `get_run` | Saved Orders measurements or library checks, plus the candidate source reference |
 | `replay_run` | A fresh result from the saved snapshots and plan |
 | `verify_candidate` | An Orders result from running the saved baseline and plan against the full commit ID of a fix |
+| `verify_library_candidate` | A TanStack Query or Zustand result from checking a full commit ID in a configured trusted library repository |
 
-Include `--enable-execution` after the repository path to register the last two tools. Orders replays and verification launch a disposable PostgreSQL instance. Library replays launch Node workers directly. Each creates a separate run ID. The assistant receives the same evidence projection as the browser. It includes observed fixture values and Git references, while source snapshots, SQL text, and runner diagnostics stay in the local workflow.
+Include `--enable-execution` after the evidence repository path to enable replay and Orders verification. Add `--library-repository /absolute/path/to/trusted/repository` to enable library verification. The server uses that fixed target repository for Git reads and saves results in the evidence repository. The tool accepts a run ID and full commit ID. Orders replays and verification launch a disposable PostgreSQL instance. Library replays and verification launch Node workers directly. Each creates a separate run ID.
+
+The browser and assistant share the evidence projection, including the selected checks, expected and observed values, selection provenance, and replay or verification links. Inconclusive results show a fixed explanation based on the runner's reason code. Detailed diagnostics and executable snapshots stay in the local workflow.
 
 Run `npm --prefix integrations/mcp test` after building to exercise the server through a real stdio client.
 

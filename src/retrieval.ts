@@ -63,7 +63,7 @@ export function suggestExperiments(diff: string, directory = '.tracetern') {
     const entry = eligible.get(profile.fixture);
     const exemplar = entry && getRun(directory, entry.record.runId);
     if (!entry || !exemplar) return [];
-    const { checks, observed, planning, plan, planner, selection, sourcePath, ...example } = exemplar;
+    const { checks, observed, planning, plan, planner, selection, sourcePath, libraryPlan, reason, reasonCode, ...example } = exemplar;
     const score = new Set(matching.flatMap(match => match.concepts)).size;
     return [{ fixture: profile.fixture, scope: profile.scope, score, matching, coverage: entry.coverage,
       distinctCases: runs.filter(run => run.fixture === profile.fixture).length, example }];

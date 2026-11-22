@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { createInterface } from 'node:readline';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -116,5 +118,64 @@ for (const { name, variable, revisions, flags, fixture } of upstreamCases) {
     assert.deepEqual(replay.structuredContent.run.checks, checks);
     assert.equal(replay.structuredContent.run.replayOf, runId);
     await runner.close();
+
+    if (fixture !== 'zustand-vanilla/v1') return;
+    const target = resolve(upstream);
+    const configured = await connect(t, repository, ['--enable-execution', '--library-repository', target]);
+    assert.ok((await configured.listTools()).tools.some(tool => tool.name === 'verify_library_candidate'));
+    const viewer = spawn(process.execPath, [join(root, 'dist/src/viewer.js')], {
+      cwd: repository, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const exited = once(viewer, 'exit');
+    const lines = createInterface({ input: viewer.stdout });
+    t.after(async () => { viewer.kill(); await exited; });
+    const [address] = await Promise.race([
+      once(lines, 'line', { signal: t.signal }),
+      exited.then(() => { throw new Error('Viewer exited before listening'); }),
+    ]);
+    lines.close();
+    const cli = (status, ...args) => {
+      const run = spawnSync(process.execPath, [join(root, 'dist/src/cli.js'), ...args, '--json'], {
+        cwd: repository, encoding: 'utf8', timeout: 15_000,
+      });
+      assert.equal(run.status, status, run.stderr + run.stdout);
+      return JSON.parse(run.stdout);
+    };
+    async function assertParity(report) {
+      const mcp = await configured.callTool({ name: 'get_run', arguments: { runId: report.runId } });
+      const response = await fetch(new URL('/api/runs/' + report.runId, address));
+      assert.equal(response.status, 200);
+      const browser = await response.json();
+      assert.deepEqual(browser, mcp.structuredContent.run);
+      assert.equal(browser.verdict, report.verdict);
+      assert.equal(browser.baseCommit, report.baseCommit);
+      assert.equal(browser.candidateCommit, report.candidateCommit);
+      assert.deepEqual(browser.libraryPlan, report.plan);
+      assert.deepEqual(browser.checks, report.checks);
+      assert.deepEqual(browser.selection, report.selection);
+      assert.equal(browser.reasonCode, report.reasonCode);
+      return browser;
+    }
+    await assertParity(JSON.parse(recorded.stdout));
+    await assertParity(cli(1, 'compare-library', target, revisions[1], revisions[0], ...flags));
+    const shared = cli(2, 'run-suggested', target, revisions[0], revisions[0]);
+    assert.equal(shared.reasonCode, 'no-coverage');
+    const sameFailure = cli(2, 'compare-library', target, revisions[0], revisions[0], ...flags);
+    assert.equal((await assertParity(sameFailure)).reasonCode, 'shared-failure');
+    const rejected = await configured.callTool({
+      name: 'verify_library_candidate', arguments: { runId: sameFailure.runId, commit: 'HEAD' },
+    });
+    assert.equal(rejected.isError, true);
+    const verification = await configured.callTool({
+      name: 'verify_library_candidate', arguments: { runId: sameFailure.runId, commit: revisions[1] },
+    });
+    const verified = verification.structuredContent?.run;
+    assert.ok(verified, JSON.stringify(verification));
+    assert.equal(verified.verdict, 'pass');
+    assert.equal(verified.verificationOf, sameFailure.runId);
+    assert.equal(verified.candidateCommit, revisions[1]);
+    assert.deepEqual(verified.checks, checks);
+    assert.deepEqual(await assertParity(cli(0, 'replay', verified.runId)).then(run => run.checks), checks);
+    await configured.close();
   });
 }

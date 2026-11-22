@@ -3,8 +3,9 @@ import { join } from 'node:path';
 import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { defaultExperiment, type Experiment } from './experiment.js';
 import { datafusionFixture, runIdPattern, type EvidenceCheck, type LibrarySelection, type Result } from './evidence.js';
-import { isLibraryFixture } from './library-cases.js';
+import { isLibraryFixture, type LibraryCase } from './library-cases.js';
 import type { LibraryPlanning } from './library-planner.js';
+import type { ReasonCode } from './execution.js';
 
 type Completed = Exclude<Result, { verdict: 'inconclusive' }>;
 type Row = Record<string, SQLOutputValue>;
@@ -23,14 +24,31 @@ export interface RunSummary {
 }
 
 export interface RunEvidence extends RunSummary {
-  sourcePath: string;
+  sourcePath: string | null;
   planner: 'rule' | 'ollama' | null;
   plan: Experiment | null;
   observed: Pick<Completed, 'postgres' | 'reads' | 'mismatch' | 'callMetric'> | null;
   checks?: EvidenceCheck[];
   planning?: LibraryPlanning;
   selection?: LibrarySelection;
+  libraryPlan?: LibraryCase[];
+  reason?: string;
+  reasonCode?: ReasonCode;
 }
+
+// Only publish fixed descriptions. Historical reasons and runner diagnostics can contain local data.
+const reasons: Record<ReasonCode, string> = {
+  'no-coverage': 'No supported saved experiment covered the change.',
+  'shared-failure': 'Both revisions exhibited the same failure with passing controls.',
+  'invalid-input': 'The runner could not use the supplied inputs.',
+  'incompatible-replay': 'The replay environment is incompatible with the saved run.',
+  'artifact-invalid': 'A saved artifact was missing or failed its integrity check.',
+  'execution-failed': 'The experiment could not complete.',
+  'invalid-observations': 'The worker returned invalid observations.',
+  'reference-failed': 'The baseline failed a contract or differed from the saved observations.',
+  timeout: 'The experiment exceeded its time limit.',
+  cancelled: 'The experiment was cancelled.',
+};
 
 const summaryColumns = `id, created_at,
   json_extract(payload, '$.result.verdict') AS verdict,
@@ -102,18 +120,27 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
         json_extract(payload, '$.plan') AS plan,
         json_extract(payload, '$.planning') AS planning,
         json_extract(payload, '$.selection') AS selection,
+        json_extract(payload, '$.result.reasonCode') AS reason_code,
         CASE WHEN json_extract(payload, '$.result.verdict') IN ('pass', 'regression')
           OR json_type(payload, '$.result.checks') = 'array'
           THEN json_extract(payload, '$.result') END AS completed
       FROM runs_v1 WHERE id = ?
     `).get(runId);
     if (!row) return undefined;
+    const reasonCode = typeof row.reason_code === 'string' && Object.hasOwn(reasons, row.reason_code)
+      ? row.reason_code as ReasonCode : undefined;
+    const outcome = row.verdict === 'inconclusive'
+      ? { reason: reasonCode ? reasons[reasonCode] : 'The runner could not reach a verdict.', reasonCode }
+      : {};
+    const sourcePath = row.source_path as string | null;
 
     if (row.fixture === datafusionFixture || isLibraryFixture(row.fixture)) {
       const result = typeof row.completed === 'string' ? JSON.parse(row.completed) as Pick<RunEvidence, 'checks'> : undefined;
       return {
-        ...summary(row), sourcePath: row.source_path as string, planner: null,
+        ...summary(row), ...outcome, sourcePath, planner: null,
         plan: null, observed: null, checks: result?.checks,
+        libraryPlan: isLibraryFixture(row.fixture) && typeof row.plan === 'string'
+          ? JSON.parse(row.plan) as LibraryCase[] : undefined,
         selection: typeof row.selection === 'string' ? JSON.parse(row.selection) as LibrarySelection : undefined,
         planning: typeof row.planning === 'string' ? JSON.parse(row.planning) as LibraryPlanning : undefined,
       };
@@ -123,7 +150,7 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
     const mismatch = result?.mismatch;
     return {
       ...summary(row),
-      sourcePath: row.source_path as string,
+      ...outcome, sourcePath,
       planner: row.planner as RunEvidence['planner'],
       plan: typeof row.plan === 'string' ? JSON.parse(row.plan) as Experiment : result && defaultExperiment,
       observed: result && {
