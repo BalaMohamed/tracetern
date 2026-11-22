@@ -4,11 +4,13 @@ export type Grade = 'direct' | 'control';
 export type Features = [codeOverlap: number, pathOverlap: number, pathMatch: number, matchingCodeOverlap: number];
 export type Example = { features: Features; relevant: boolean };
 
-export function benchmarkInput(diff: string) {
+export function benchmarkInput(diff: string, sourceOnly = false) {
   const excerpts: { path: string; code: string }[] = [];
   let remaining = 10_000;
   for (const [path, lines] of productionChanges(diff)) {
     if (!lines.length || remaining <= path.length + 5) continue;
+    if (sourceOnly && (!/\.(?:[cm]?[jt]sx?|rs|py|java|scala|c|cc|cpp|h|hpp)$/.test(path) ||
+        /(?:^|\/)[^/]+\.config\./.test(path))) continue;
     const code = lines.join('\n').slice(0, Math.min(1200, remaining - path.length - 5));
     excerpts.push({ path, code });
     remaining -= path.length + code.length + 5;
@@ -29,7 +31,7 @@ export function benchmarkInput(diff: string) {
     ];
     return { fixture: profile.fixture, scope: profile.scope, keywordScore, features };
   });
-  return { excerpt: excerpts.map(({ path, code }) => path + '\n' + code).join('\n\n'), candidates };
+  return { excerpt: excerpts.map(({ path, code }) => path + '\n' + code).join('\n\n'), excerpts, candidates };
 }
 
 function probability(weights: readonly number[], features: Features) {

@@ -3,8 +3,8 @@ set -euo pipefail
 # Run from the TraceTern root. The evaluator verifies each downloaded digest.
 dataset="${1:-pilot}"
 case "$dataset" in
-  pilot|expanded|coverage|shortlist) ;;
-  *) echo 'Usage: bash evaluation/ranking/fetch.sh [pilot|expanded|coverage|shortlist]' >&2; exit 2 ;;
+  pilot|expanded|coverage|shortlist|beta) ;;
+  *) echo 'Usage: bash evaluation/ranking/fetch.sh [pilot|expanded|coverage|shortlist|beta]' >&2; exit 2 ;;
 esac
 directory=.tracetern/ranking-diffs
 mkdir -p "$directory"

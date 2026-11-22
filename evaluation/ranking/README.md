@@ -106,3 +106,64 @@ bash evaluation/ranking/fetch.sh shortlist
 npm run evaluate:ranking --silent -- --dataset shortlist --ollama <installed-model-tag>
 npm run tracetern -- suggest change.patch --learned evaluation/ranking/results-shortlist.json
 ```
+
+## Beta selection holdout
+
+The [frozen manifest](cases-beta.json) contains 12 merged PRs from five
+repositories absent from all previous splits. One case directly changes an
+asserted behavior, five have a related control, and six have no useful saved
+experiment. Case selection targeted serializer ordering, Parquet pruning and
+store notifications, with adjacent changes included to test abstention.
+Labels and rationales were recorded from the public diffs before scoring.
+The manifest pins the GitHub base and head object IDs and the SHA-256 of each
+downloaded PR diff.
+
+The learned model uses the original 16 training PRs. On the holdout, all
+methods use the same changed production source excerpts, capped at 1,200
+characters per file and 10,000 characters overall. Standalone test files,
+documentation, changesets, and config files are excluded. Tests embedded in
+production files can still appear. Recorded coverage uses the same saved
+assertion snapshot as the previous shortlist evaluation. The pure coverage
+baseline orders eligible experiments by matched behavior count, with fixture
+ID breaking ties. Keyword, learned, and optional Ollama methods also run on
+the common candidate bank and on the coverage shortlist.
+
+```sh
+bash evaluation/ranking/fetch.sh beta
+npm run evaluate:ranking --silent -- --dataset beta
+npm run evaluate:ranking --silent -- --dataset beta --ollama <installed-model-tag>
+```
+
+The deterministic score comparisons omit timings and resource measurements.
+The report records per-case selection wall time in milliseconds, the number
+of model-generation requests, and the evaluator process's peak RSS in KiB.
+The evaluator RSS excludes the separate Ollama server. Selection timings
+exclude diff fetching and builds, while model request times include local
+provider overhead.
+
+| Method | Direct first | Control first | Irrelevant first | Correct abstentions | Useful cases missed at rank 1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Keyword | 0 | 2 | 2 | 4 | 4 |
+| Learned | 0 | 1 | 1 | 5 | 5 |
+| Recorded coverage | 1 | 0 | 0 | 6 | 5 |
+| Keyword on shortlist | 1 | 0 | 0 | 6 | 5 |
+| Learned on shortlist | 1 | 0 | 0 | 6 | 5 |
+| Ollama | 0 | 2 | 8 | 0 | 4 |
+| Ollama on shortlist | 0 | 0 | 0 | 6 | 6 |
+
+Recorded coverage found the request key ordering change in urql PR #426.
+The local model abstained on it, including when offered the single eligible
+experiment. The benchmark measured 19 ms and about 63 MiB peak evaluator RSS
+with the deterministic methods. The Ollama run used 13 generation requests
+and took 112 s overall, with about 68 MiB peak evaluator RSS. The
+[complete report](results-beta.json) records the model tag and digest as well
+as every ranking. [urql PR #426](https://github.com/urql-graphql/urql/pull/426)
+
+**Executable coverage.** None of the five repositories has a supported Git
+replay adapter. The one direct recommendation describes equivalent behavior
+at the experiment level. No held-out PR code was run. The most frequent
+misses were serializer controls spread across different APIs, followed by
+store notification controls with application-specific lifecycle requirements.
+Keep recorded coverage as the default and keep the current adapter set for
+beta. The holdout does not establish a recurring executable failure for an
+additional adapter.

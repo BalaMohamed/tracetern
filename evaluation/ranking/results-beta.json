@@ -1,0 +1,463 @@
+{
+  "schemaVersion": 1,
+  "dataset": "beta",
+  "trainingCases": 16,
+  "trainingPairs": 64,
+  "testCases": 12,
+  "weights": [
+    -1.3423412069094829,
+    3.876253182513229,
+    1.2674227967411775,
+    2.0586292566226563,
+    0.7266523659793007
+  ],
+  "model": "ttempvnn/Huihui-gemma-4-12B-it-qat-q4_0-unquantized-abliterated-Q4-K-M:latest",
+  "modelDigest": "31f91ca54365ce66faac667e15f270b8826ff5b1827869c77dacc8cd8b9a0839",
+  "metrics": {
+    "keyword": {
+      "usefulAt1": 2,
+      "directAt1": 0,
+      "controlAt1": 2,
+      "missedUsefulAt1": 4,
+      "irrelevantAt1": 2,
+      "abstentions": 8,
+      "correctAbstentions": 4,
+      "meanNdcgOnUsefulCases": 0.3333333333333333
+    },
+    "learned": {
+      "usefulAt1": 1,
+      "directAt1": 0,
+      "controlAt1": 1,
+      "missedUsefulAt1": 5,
+      "irrelevantAt1": 1,
+      "abstentions": 10,
+      "correctAbstentions": 5,
+      "meanNdcgOnUsefulCases": 0.16666666666666666
+    },
+    "recordedCoverage": {
+      "usefulAt1": 1,
+      "directAt1": 1,
+      "controlAt1": 0,
+      "missedUsefulAt1": 5,
+      "irrelevantAt1": 0,
+      "abstentions": 11,
+      "correctAbstentions": 6,
+      "meanNdcgOnUsefulCases": 0.16666666666666666
+    },
+    "keywordShortlist": {
+      "usefulAt1": 1,
+      "directAt1": 1,
+      "controlAt1": 0,
+      "missedUsefulAt1": 5,
+      "irrelevantAt1": 0,
+      "abstentions": 11,
+      "correctAbstentions": 6,
+      "meanNdcgOnUsefulCases": 0.16666666666666666
+    },
+    "learnedShortlist": {
+      "usefulAt1": 1,
+      "directAt1": 1,
+      "controlAt1": 0,
+      "missedUsefulAt1": 5,
+      "irrelevantAt1": 0,
+      "abstentions": 11,
+      "correctAbstentions": 6,
+      "meanNdcgOnUsefulCases": 0.16666666666666666
+    },
+    "ollama": {
+      "usefulAt1": 2,
+      "directAt1": 0,
+      "controlAt1": 2,
+      "missedUsefulAt1": 4,
+      "irrelevantAt1": 8,
+      "abstentions": 2,
+      "correctAbstentions": 0,
+      "meanNdcgOnUsefulCases": 0.5436432511904858
+    },
+    "ollamaShortlist": {
+      "usefulAt1": 0,
+      "directAt1": 0,
+      "controlAt1": 0,
+      "missedUsefulAt1": 6,
+      "irrelevantAt1": 0,
+      "abstentions": 12,
+      "correctAbstentions": 6,
+      "meanNdcgOnUsefulCases": 0
+    }
+  },
+  "cases": [
+    {
+      "repo": "BridgeAR/safe-stable-stringify",
+      "pr": 76,
+      "labels": {
+        "tanstack-query-keys/v1": "control"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.030875000000008868,
+        "keyword": 0.03012499999999818,
+        "learned": 0.016334000000000515,
+        "recordedCoverage": 0.005083000000013271,
+        "keywordShortlist": 0.0035829999999918982,
+        "learnedShortlist": 0.0034169999999846823,
+        "ollama": 13551.707457999999,
+        "ollamaShortlist": 0.0016250000007858034
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "BridgeAR/safe-stable-stringify",
+      "pr": 49,
+      "labels": {
+        "tanstack-query-keys/v1": "control"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.008084000000962988,
+        "keyword": 0.010666999998647952,
+        "learned": 0.013542000000597909,
+        "recordedCoverage": 0.0009160000008705538,
+        "keywordShortlist": 0.0007089999999152496,
+        "learnedShortlist": 0.0016250000007858034,
+        "ollama": 13786.045624999999,
+        "ollamaShortlist": 0.00166700000045239
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "urql-graphql/urql",
+      "pr": 426,
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [
+          "tanstack-query-keys/v1"
+        ],
+        "keywordShortlist": [
+          "tanstack-query-keys/v1"
+        ],
+        "learnedShortlist": [
+          "tanstack-query-keys/v1"
+        ],
+        "ollama": [],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.06279200000062701,
+        "keyword": 0.006792000000132248,
+        "learned": 0.006000000001222361,
+        "recordedCoverage": 0.01937499999985448,
+        "keywordShortlist": 0.006375000000844011,
+        "learnedShortlist": 0.008249999998952262,
+        "ollama": 12674.816875,
+        "ollamaShortlist": 13270.632167000003
+      },
+      "ollamaRequests": 2
+    },
+    {
+      "repo": "urql-graphql/urql",
+      "pr": 718,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.0026250000009895302,
+        "keyword": 0.0025409999943803996,
+        "learned": 0.008999999998195563,
+        "recordedCoverage": 0.007041999997454695,
+        "keywordShortlist": 0.0005830000009154901,
+        "learnedShortlist": 0.0003329999963170849,
+        "ollama": 7365.014209000001,
+        "ollamaShortlist": 0.0038750000021536835
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "urql-graphql/urql",
+      "pr": 3632,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.01187499999650754,
+        "keyword": 0.005375000000640284,
+        "learned": 0.016207999993639532,
+        "recordedCoverage": 0.0017920000027515925,
+        "keywordShortlist": 0.0012499999938881956,
+        "learnedShortlist": 0.0010419999962323345,
+        "ollama": 5398.431624999997,
+        "ollamaShortlist": 0.0015830000047571957
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "apache/iceberg-rust",
+      "pr": 3507,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.00408400000014808,
+        "keyword": 0.003874999994877726,
+        "learned": 0.011790999997174367,
+        "recordedCoverage": 0.003875000009429641,
+        "keywordShortlist": 0.0007079999923007563,
+        "learnedShortlist": 0.0006250000005820766,
+        "ollama": 5652.137208,
+        "ollamaShortlist": 0.002250000005005859
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "apache/iceberg-rust",
+      "pr": 3438,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.0036249999975552782,
+        "keyword": 0.014083000001846813,
+        "learned": 0.01029200000630226,
+        "recordedCoverage": 0.0010420000035082921,
+        "keywordShortlist": 0.0005840000085299835,
+        "learnedShortlist": 0.0003330000035930425,
+        "ollama": 8309.850249999989,
+        "ollamaShortlist": 0.002542000001994893
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "apache/iceberg-rust",
+      "pr": 3539,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.002542000001994893,
+        "keyword": 0.0025000000023283064,
+        "learned": 0.010167000000365078,
+        "recordedCoverage": 0.0006250000005820766,
+        "keywordShortlist": 0.000375000003259629,
+        "learnedShortlist": 0.0002919999969890341,
+        "ollama": 7437.022917000009,
+        "ollamaShortlist": 0.0017920000100275502
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "nanostores/nanostores",
+      "pr": 435,
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "zustand-vanilla/v1",
+          "tanstack-query-keys/v1",
+          "datafusion-parquet-pushdown/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.003041999996639788,
+        "keyword": 0.001915999993798323,
+        "learned": 0.0065420000028098,
+        "recordedCoverage": 0.0006250000005820766,
+        "keywordShortlist": 0.000375000003259629,
+        "learnedShortlist": 0.00979199999710545,
+        "ollama": 9156.872459000006,
+        "ollamaShortlist": 0.0013329999928828329
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "nanostores/nanostores",
+      "pr": 419,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.0034580000065034255,
+        "keyword": 0.0029999999969732016,
+        "learned": 0.005791999996290542,
+        "recordedCoverage": 0.0005410000012489036,
+        "keywordShortlist": 0.00041700000292621553,
+        "learnedShortlist": 0.00016599999798927456,
+        "ollama": 6096.0751249999885,
+        "ollamaShortlist": 0.0044999999954598024
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "pmndrs/jotai",
+      "pr": 3373,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1"
+        ],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "zustand-vanilla/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.013707999998587184,
+        "keyword": 0.010708000001613982,
+        "learned": 0.011417000001529232,
+        "recordedCoverage": 0.0016669999895384535,
+        "keywordShortlist": 0.0009999999892897904,
+        "learnedShortlist": 0.0006250000005820766,
+        "ollama": 6333.658875000008,
+        "ollamaShortlist": 0.004709000000730157
+      },
+      "ollamaRequests": 1
+    },
+    {
+      "repo": "pmndrs/jotai",
+      "pr": 2946,
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1"
+        ],
+        "recordedCoverage": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "zustand-vanilla/v1"
+        ],
+        "ollamaShortlist": []
+      },
+      "selectionMs": {
+        "coverageShortlist": 0.0032079999946290627,
+        "keyword": 0.011249999995925464,
+        "learned": 0.018834000002243556,
+        "recordedCoverage": 0.0012080000014975667,
+        "keywordShortlist": 0.0008329999982379377,
+        "learnedShortlist": 0.0003749999887077138,
+        "ollama": 3017.554958000008,
+        "ollamaShortlist": 0.004000000000814907
+      },
+      "ollamaRequests": 1
+    }
+  ],
+  "evaluatorResources": {
+    "wallMs": 112148.409625,
+    "maxRssKiB": 69824,
+    "ollamaRequests": 13
+  }
+}

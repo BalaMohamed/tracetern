@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "split": "test",
+      "repo": "BridgeAR/safe-stable-stringify",
+      "pr": 76,
+      "base": "5dd026c95d113dfa3136b087edbd8e7fb1be3b9b",
+      "head": "4d782b8aa68a9ddf5b673207d262bbae66f4e28b",
+      "diffSha256": "0edb35d9ee5a33f46ad86ec091fda11af274acdcdc86c19368912136cbf144c8",
+      "labels": {
+        "tanstack-query-keys/v1": "control"
+      },
+      "rationale": "Canonical object order should survive the sorting change. The saved small-object check does not exercise the fallback after many insertion-sort moves."
+    },
+    {
+      "split": "test",
+      "repo": "BridgeAR/safe-stable-stringify",
+      "pr": 49,
+      "base": "7b7ec1b25c12449b9743fd0c1789be667a2162c6",
+      "head": "dde34e05a12960a5f6655a61e5af33233c6aa1c7",
+      "diffSha256": "b5e917eb79b95a1373b2370b26e7d3340cd2ef97641928fd91a91ded07b33d6f",
+      "labels": {
+        "tanstack-query-keys/v1": "control"
+      },
+      "rationale": "Default canonical ordering is a useful control for the new custom comparator option. The saved experiment has no custom comparator."
+    },
+    {
+      "split": "test",
+      "repo": "urql-graphql/urql",
+      "pr": 426,
+      "base": "ac8e85cf40491f418d756bed91bce8a0be0ce205",
+      "head": "2272d6040530e8c84b7d8f779fa5611cf4afb0d0",
+      "diffSha256": "0bc85bd44ecdcf24d7609becc0a94d3071337a5d10dd60648db0851e22964c3e",
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "rationale": "The replaced GraphQL request key serializer sorts object properties and retains array element order, the two behaviors checked by the saved cache-key experiment."
+    },
+    {
+      "split": "test",
+      "repo": "urql-graphql/urql",
+      "pr": 718,
+      "base": "77e582541f92b549146a48256a5e18431b22f551",
+      "head": "7928e765b0d7c190f469b22c8a2efb559ec147b1",
+      "diffSha256": "0e409533919e11334328a0f9bbc05be74fd956180ff43477ec3e03f1b6c8797f",
+      "labels": {},
+      "rationale": "The changed scalar path uses a custom toJSON result. Plain objects and arrays do not exercise it."
+    },
+    {
+      "split": "test",
+      "repo": "urql-graphql/urql",
+      "pr": 3632,
+      "base": "6406fd5fa30180648439e9f9ba9f18caf16e2497",
+      "head": "7c6fa00cacc71616c82d7494773f36ff78853798",
+      "diffSha256": "bfa62e6372b9ba60c27c4b24f05ca628003f63aac72aa90642cb0f13c0cac68a",
+      "labels": {},
+      "rationale": "The change removes duplicate stringification in the SSR exchange. The saved replay has neither per-result serialization calls nor the urql SSR exchange."
+    },
+    {
+      "split": "test",
+      "repo": "apache/iceberg-rust",
+      "pr": 3507,
+      "base": "6612395befbfdb5a00f7a059aa62261964d0d081",
+      "head": "bf4a52d936dcf083507d4462b244e91d8b7777a0",
+      "diffSha256": "05a418e13244da009a35bf9cb8dc3c8bb04992b3b72ed40e154870111e7cdbe4",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "Preserving filtered rows is relevant to predicate pruning. The saved Parquet fixture cannot exercise page index bounds that are incomparable with the predicate."
+    },
+    {
+      "split": "test",
+      "repo": "apache/iceberg-rust",
+      "pr": 3438,
+      "base": "cfbfb2789fb8899f3ffceef25e168ad04ab3a5d7",
+      "head": "9813f4aa04969b6710a33582d0ace879254abfca",
+      "diffSha256": "54dca93ed4db78e33bb922bbc4d88226bde3191c9d851df66cbad4cece4468db",
+      "labels": {},
+      "rationale": "The reader reconstructs struct validity when requested children are missing. The saved nested filter workload has no absent child projection or top-level validity assertion."
+    },
+    {
+      "split": "test",
+      "repo": "apache/iceberg-rust",
+      "pr": 3539,
+      "base": "26356f549b24b792e245d6e91240ebaa9f073c88",
+      "head": "b82e58c85f3542292f87c6896a80021f3ef0bdd2",
+      "diffSha256": "7d5844ff9ab2fe7d557dc32375126e8d8f8c9853139e601940a314045f3a0ddc",
+      "labels": {},
+      "rationale": "The change is in writer-side statistics aggregation and needs floating-point NaN inputs. The saved fixture measures reader pushdown with integer fields."
+    },
+    {
+      "split": "test",
+      "repo": "nanostores/nanostores",
+      "pr": 435,
+      "base": "cb9c3b1645f13d4935cda14179cc97d26ee369fa",
+      "head": "b72875d12380d01ad858377ef0a20de34280aff1",
+      "diffSha256": "2f6fdf8d05235ed6dc9e141f92b4bb87d692102a58eca785cc6c7810e3b03e91",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "Ordinary subscription and unsubscribe behavior is a useful control for listener queues. The saved test lacks reentrant unbind and grouped writes."
+    },
+    {
+      "split": "test",
+      "repo": "nanostores/nanostores",
+      "pr": 419,
+      "base": "a8c254c969e82dec01d02de09b11d722ed496907",
+      "head": "e5b73e38c428b5cfa5047c9d89f129ed7993d272",
+      "diffSha256": "3cc809bbde5fcb0dd4da884378e068e57823a50f6e71ae2b46a8249c10de1f1c",
+      "labels": {},
+      "rationale": "The change compares watched deep paths during whole-store set. The saved store checks have no path-filtered subscriptions."
+    },
+    {
+      "split": "test",
+      "repo": "pmndrs/jotai",
+      "pr": 3373,
+      "base": "0c23f15ab895be1d2b1df985a104fbb77cb9a845",
+      "head": "138f1aa5f09905f0adf32617c30dae7c18c35abd",
+      "diffSha256": "3c45939ab9ee365c63e2c8d2fe7cde32806dc17384b6ec017abec852897f7140",
+      "labels": {},
+      "rationale": "The issue is a React subscription timing path during synchronous onMount updates. The saved vanilla check has no React lifecycle."
+    },
+    {
+      "split": "test",
+      "repo": "pmndrs/jotai",
+      "pr": 2946,
+      "base": "e98b58abd7b94de0715240593d88bb4072b08101",
+      "head": "b05987792578358fbf593ff9612d6b4ed345fb11",
+      "diffSha256": "b8003a7d0ac89a49332ef23d81878152f1f35ec5e00be1ba05a6018d63090f71",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "Ordinary notifications are a control for the vanilla store callback refactor. The saved experiment has no dependent atoms or nested callback flushes."
+    }
+  ]
+}

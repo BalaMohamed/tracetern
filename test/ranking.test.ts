@@ -50,4 +50,8 @@ test('production excerpts exclude test files and the metric credits only relevan
   assert.equal(scoreOrder(['other'], { chosen: 'control' }).top, 'irrelevant');
   assert.equal(scoreOrder(['chosen'], { chosen: 'direct' }).ndcg, 1);
   assert.ok(scoreOrder(['other', 'chosen'], { chosen: 'direct' }).ndcg! < 1);
+  const sourceOnly = benchmarkInput(entry('.changeset/context.md', 'titleContainsParquet')
+    + entry('src/something.config.ts', 'configContainsPushdown')
+    + entry('src/filter.rs', 'realPredicate()'), true);
+  assert.deepEqual(sourceOnly.excerpts, [{ path: 'src/filter.rs', code: 'before()\nrealPredicate()' }]);
 });
