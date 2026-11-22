@@ -70,7 +70,8 @@ try {
     } else if ('checks' in report) {
       console.log(report.fixture);
       for (const check of report.checks) {
-        const outcome = check.repaired ? 'baseline failure repaired' : check.matched ? 'matched' : 'differs';
+        const outcome = check.contractAdded ? (check.matched ? 'new contract met' : 'new contract failed')
+          : check.repaired ? 'baseline failure repaired' : check.matched ? 'matched' : 'differs';
         console.log(check.id + ': ' + outcome + ' · ' + JSON.stringify(check.candidate));
       }
       console.log('Verdict: ' + report.verdict);

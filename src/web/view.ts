@@ -11,6 +11,7 @@ const libraryLabels = {
   'distinct-array-keys': 'Distinct array orderings',
   'restore-baseline-cache': 'Restore the baseline cache snapshot',
   'optimistic-query-count': 'Optimistic result counts, control then expanded',
+  'dehydration-timestamp': 'Dehydration timestamps, fallback, client default, explicit, and zero',
 };
 const stages = { cold: 'Cold read', warm: 'Warm read', 'after-rename': 'Read after rename' };
 const queryLabels: Record<keyof QueryGroups, string> = {
@@ -216,8 +217,10 @@ function renderRun(run: RunEvidence) {
       const row = body.insertRow();
       const label = element('th', '', libraryLabels[check.id]);
       label.scope = 'row';
+      const outcome = check.contractAdded ? (check.matched ? 'New contract met' : 'New contract failed')
+        : check.repaired ? 'Repaired' : check.matched ? 'Matched' : 'Differs';
       row.append(label, ...[values(check.expected), values(check.reference), values(check.candidate),
-        check.repaired ? 'Repaired' : check.matched ? 'Matched' : 'Differs'].map(value => element('td', '', value)));
+        outcome].map(value => element('td', '', value)));
     }
     const section = element('section', 'request-section');
     section.append(table);

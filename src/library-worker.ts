@@ -10,6 +10,7 @@ interface Client {
 }
 type QueryOptions = { queryKey: Key; queryFn: () => Promise<string> };
 type CombineCount = (results: unknown[]) => number;
+type DehydrateOptions = { dehydratedAt: number };
 interface Observer {
   subscribe(listener: () => void): () => void;
   setQueries(queries: QueryOptions[], options: { combine: CombineCount }): void;
@@ -19,9 +20,9 @@ interface CacheState {
   queries: { dehydratedAt?: number }[];
 }
 interface QueryCore {
-  QueryClient: new (options: { defaultOptions: { queries: { gcTime: number } } }) => Client;
+  QueryClient: new (options: { defaultOptions: { queries: { gcTime: number }; dehydrate?: DehydrateOptions } }) => Client;
   QueriesObserver: new (client: Client, queries: QueryOptions[], options: { combine: CombineCount }) => Observer;
-  dehydrate(client: Client): CacheState;
+  dehydrate(client: Client, options?: DehydrateOptions): CacheState;
   hydrate(client: Client, state: CacheState): void;
 }
 
@@ -29,7 +30,8 @@ const [entry, savedPlan, baselineFile] = process.argv.slice(2);
 if (!entry || !savedPlan) throw new Error('Missing library artifact or experiment plan');
 const plan = validateLibraryPlan(JSON.parse(savedPlan));
 const core: QueryCore = await import(entry);
-const createClient = () => new core.QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+const createClient = (dehydrate?: DehydrateOptions) =>
+  new core.QueryClient({ defaultOptions: { queries: { gcTime: Infinity }, dehydrate } });
 const lookup = (client: Client, key: Key) => client.getQueryData(key) ?? null;
 
 function seedSnapshot(client: Client): CacheState {
@@ -69,6 +71,26 @@ async function observeQueryCount(expanded: boolean): Promise<string[]> {
   }
 }
 
+function observeTimestamp(clientDefault?: number, override?: number): (string | null)[] {
+  const client = createClient(clientDefault === undefined ? undefined : { dehydratedAt: clientDefault });
+  const now = Date.now;
+  let readClock = false;
+  try {
+    client.setQueryData(['posts'], 'posts', { updatedAt: 55 });
+    client.setQueryData(['comments'], 'comments', { updatedAt: 56 });
+    Date.now = () => {
+      readClock = true;
+      return 900;
+    };
+    const { queries } = core.dehydrate(client, override === undefined ? undefined : { dehydratedAt: override });
+    const timestamps = queries.map(({ dehydratedAt }) => typeof dehydratedAt === 'number' ? String(dehydratedAt) : null);
+    return [...timestamps, readClock ? 'clock read' : 'clock unused'];
+  } finally {
+    Date.now = now;
+    client.clear();
+  }
+}
+
 const observations: LibraryLookups = {};
 let snapshot: CacheState | undefined;
 for (const id of plan) {
@@ -94,6 +116,12 @@ for (const id of plan) {
       }
       case 'optimistic-query-count':
         observations[id] = [...await observeQueryCount(false), ...await observeQueryCount(true)];
+        break;
+      case 'dehydration-timestamp':
+        observations[id] = [
+          ...observeTimestamp(), ...observeTimestamp(444),
+          ...observeTimestamp(444, 123), ...observeTimestamp(444, 0),
+        ];
         break;
     }
   } finally {

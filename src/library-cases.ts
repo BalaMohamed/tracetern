@@ -1,17 +1,25 @@
 export const libraryFixture = 'tanstack-query-keys/v1';
 
-// Each result is a public getQueryData lookup. A cache miss is recorded as null.
+// A missing cache value or timestamp is recorded as null.
 export const expectedLookups = {
   'equivalent-object-keys': ['open page 2'],
   'distinct-array-keys': ['first ordering', 'second ordering'],
   'restore-baseline-cache': ['saved open orders'],
   // Stable one-query control, then two requested queries during a pending update.
   'optimistic-query-count': ['1', '1', '2', '2'],
+  'dehydration-timestamp': [
+    '900', '900', 'clock read',
+    '444', '444', 'clock unused',
+    '123', '123', 'clock unused',
+    '0', '0', 'clock unused',
+  ],
 } as const;
 
 export type LibraryCase = keyof typeof expectedLookups;
 export const libraryPlan = Object.keys(expectedLookups) as LibraryCase[];
-export const defaultLibraryPlan = libraryPlan.filter(id => id !== 'optimistic-query-count');
+export const defaultLibraryPlan: LibraryCase[] = [
+  'equivalent-object-keys', 'distinct-array-keys', 'restore-baseline-cache',
+];
 export type LibraryLookups = Partial<Record<LibraryCase, (string | null)[]>>;
 
 export function validateLibraryPlan(plan: unknown): LibraryCase[] {
@@ -36,5 +44,6 @@ export interface LibraryResult {
     candidate: (string | null)[];
     matched: boolean;
     repaired?: true;
+    contractAdded?: true;
   }[];
 }

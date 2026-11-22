@@ -4,6 +4,7 @@ export const plannerVersion = 'diff-and-docs/v1';
 export const keyGuide = 'docs/framework/react/guides/query-keys.md';
 export const persistenceGuide = 'docs/framework/react/plugins/persistQueryClient.md';
 export const observerGuide = 'docs/framework/react/reference/functions/useQueries.md';
+export const timestampGuide = 'docs/framework/react/guides/advanced-ssr.md';
 export const plannerPaths = ['packages/query-core/src', 'packages/query-persist-client-core/src'];
 
 type Citation = { path: string; line: number; revision: 'base' | 'candidate'; excerpt: string };
@@ -43,7 +44,7 @@ function matchingChange(diff: string, paths: RegExp, pattern: RegExp): Citation 
   }
 }
 
-export function selectLibraryExperiments(diff: string, docs: ReadonlyMap<string, string>): LibraryPlanning {
+export function selectLibraryExperiments(diff: string, docs: ReadonlyMap<string, string>, candidateDocs?: ReadonlyMap<string, string>): LibraryPlanning {
   const hashes = matchingChange(diff, /^packages\/query-core\/src\/(?:utils|queryClient|queryCache)\.ts$/,
     /\b(?:hashKey|queryHash|stableHash|queryKeyHashFn|hashQueryKeyByOptions)\b/);
   const hydration = matchingChange(diff,
@@ -51,21 +52,25 @@ export function selectLibraryExperiments(diff: string, docs: ReadonlyMap<string,
     /\b(?:hydrate|dehydrate|queryHash|hashKey|persistQueryClientRestore)\b/);
   const observers = matchingChange(diff, /^packages\/query-core\/src\/queriesObserver\.ts$/,
     /\b(?:combineResult|notify|getOptimisticResult|observerMatches)\b/);
+  const timestamps = matchingChange(diff, /^packages\/query-core\/src\/hydration\.ts$/, /\bdehydratedAt\b/);
   const experiments: LibraryPlanning['experiments'] = [];
 
-  function add(id: LibraryCase, change: Citation | undefined, path: string, promise: RegExp) {
+  function add(id: LibraryCase, change: Citation | undefined, path: string, promise: RegExp, allowNewContract = false) {
     if (!change) return;
-    const lines = docs.get(path)?.split('\n') ?? [];
-    const index = lines.findIndex(line => promise.test(line));
-    if (index < 0) return;
-    experiments.push({ id, change, contract: {
-      path, line: index + 1, revision: 'base', excerpt: lines[index]!.trim().slice(0, 240),
-    } });
+    const findContract = (text: string | undefined, revision: Citation['revision']): Citation | undefined => {
+      const lines = text?.split('\n') ?? [];
+      const index = lines.findIndex(line => promise.test(line));
+      if (index >= 0) return { path, line: index + 1, revision, excerpt: lines[index]!.trim().slice(0, 240) };
+    };
+    const contract = findContract(docs.get(path), 'base') ??
+      (allowNewContract ? findContract(candidateDocs?.get(path), 'candidate') : undefined);
+    if (contract) experiments.push({ id, change, contract });
   }
 
   add('equivalent-object-keys', hashes, keyGuide, /order of keys in objects.*considered equal/i);
   add('distinct-array-keys', hashes, keyGuide, /array item order matters/i);
   add('restore-baseline-cache', hydration, persistenceGuide, /hydrate.*previously persisted.*cache/i);
   add('optimistic-query-count', observers, observerGuide, /combine.*the results of the queries/i);
+  add('dehydration-timestamp', timestamps, timestampGuide, /pass it as `dehydratedAt`.*without reading the current time/i, true);
   return { version: plannerVersion, experiments };
 }

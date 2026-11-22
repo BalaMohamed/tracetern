@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { getRun, listRuns } from '../../src/evidence-view.js';
+import type { LibraryResult } from '../../src/library-cases.js';
 import { keyGuide } from '../../src/library-planner.js';
 
 const cli = fileURLToPath(new URL('../../src/cli.js', import.meta.url));
@@ -138,4 +139,59 @@ test('observer experiment distinguishes a repair from a regression and replays b
   assert.equal(reverted.checks[0]?.repaired, undefined);
   assert.deepEqual(reverted.checks[0]?.candidate, ['1', '1', '2', '1']);
   assert.equal(run(cwd, 1, 'replay', reverted.runId).reproduced, true);
+});
+
+const timestampRepo = process.env.TRACETERN_TIMESTAMP_REPO;
+test('dehydration timestamp distinguishes new support and catches a broken zero override on replay', {
+  skip: timestampRepo ? false : 'Set TRACETERN_TIMESTAMP_REPO to a repository containing both PR #11395 commits',
+}, async t => {
+  const cwd = await mkdtemp(join(tmpdir(), 'tracetern-timestamp-test-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const upstream = resolve(timestampRepo!);
+  const base = '799a33cdadad19d008e57c6a60e716701860a9bd';
+  const candidate = 'a97345fc7fa1d0deb0dec0a234877a59f1ce6750';
+  const timestampCheck = (result: LibraryResult) =>
+    result.checks.find(check => check.id === 'dehydration-timestamp');
+  const result = run(cwd, 0, 'plan-library', upstream, base, candidate);
+  const supported = timestampCheck(result);
+  assert.deepEqual(supported, {
+    id: 'dehydration-timestamp',
+    expected: ['900', '900', 'clock read', '444', '444', 'clock unused', '123', '123', 'clock unused', '0', '0', 'clock unused'],
+    reference: ['900', '900', 'clock read', '900', '900', 'clock read', '900', '900', 'clock read', '900', '900', 'clock read'],
+    candidate: ['900', '900', 'clock read', '444', '444', 'clock unused', '123', '123', 'clock unused', '0', '0', 'clock unused'],
+    matched: true, contractAdded: true,
+  });
+  const replay = run(cwd, 0, 'replay', result.runId);
+  assert.equal(replay.reproduced, true);
+  assert.deepEqual(replay.checks, result.checks);
+
+  const repository = join(cwd, 'mutation');
+  await mkdir(repository);
+  const paths = ['packages/query-core/src', 'pnpm-lock.yaml', 'docs/framework/react/guides/advanced-ssr.md'];
+  const archive = execFileSync('git', ['-C', upstream, 'archive', candidate, '--', ...paths], { maxBuffer: 8 * 1024 * 1024 });
+  execFileSync('tar', ['-xf', '-', '-C', repository], { input: archive });
+  const git = (...args: string[]) => execFileSync('git', [
+    '-c', 'user.name=TraceTern Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgSign=false', ...args,
+  ], { cwd: repository, encoding: 'utf8' }).trim();
+  git('init', '-q');
+  git('add', '--', ...paths);
+  git('commit', '-qm', 'Capture upstream timestamp support');
+  const working = git('rev-parse', 'HEAD');
+  const path = 'packages/query-core/src/hydration.ts';
+  const original = await readFile(join(repository, path), 'utf8');
+  const broken = original.replace('options.dehydratedAt ??', 'options.dehydratedAt ||');
+  assert.notEqual(broken, original);
+  await writeFile(join(repository, path), broken);
+  git('add', '--', path);
+  git('commit', '-qm', 'Incorrectly treat zero as an absent timestamp');
+  const failure = run(cwd, 1, 'plan-library', repository, working, 'HEAD');
+  assert.ok(supported);
+  assert.deepEqual(timestampCheck(failure), {
+    id: 'dehydration-timestamp', expected: supported.expected, reference: supported.candidate,
+    candidate: ['900', '900', 'clock read', '444', '444', 'clock unused', '123', '123', 'clock unused', '444', '444', 'clock unused'],
+    matched: false,
+  });
+  const failedReplay = run(cwd, 1, 'replay', failure.runId);
+  assert.equal(failedReplay.reproduced, true);
+  assert.deepEqual(failedReplay.checks, failure.checks);
 });

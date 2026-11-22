@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { validateLibraryPlan } from '../../src/library-cases.js';
-import { keyGuide, observerGuide, persistenceGuide, selectLibraryExperiments } from '../../src/library-planner.js';
+import { keyGuide, observerGuide, persistenceGuide, selectLibraryExperiments, timestampGuide } from '../../src/library-planner.js';
 
 const docs = new Map([
   [keyGuide, '# Query keys\nThe order of keys in objects does not matter: these are considered equal.\nArray item order matters!'],
@@ -35,6 +35,19 @@ test('observer notification changes select the observer experiment with a combin
   assert.equal(others.length, 0);
   assert.equal(experiment?.id, 'optimistic-query-count');
   assert.equal(experiment?.contract.path, observerGuide);
+});
+
+test('timestamp planning cites the new contract and prefers the baseline when it already exists', () => {
+  const path = 'packages/query-core/src/hydration.ts';
+  const patch = `diff --git a/${path} b/${path}\n@@ -3,0 +4 @@\n+  dehydratedAt?: number;\n`;
+  const candidateDocs = new Map([[timestampGuide, 'Pass it as `dehydratedAt` without reading the current time.']]);
+  const newPlan = selectLibraryExperiments(patch, docs, candidateDocs);
+  assert.deepEqual(newPlan.experiments.map(({ id, contract }) => [id, contract.revision]), [
+    ['dehydration-timestamp', 'candidate'],
+  ]);
+  const baseDocs = new Map([...docs, ...candidateDocs]);
+  assert.equal(selectLibraryExperiments(patch, baseDocs, candidateDocs).experiments[0]?.contract.revision, 'base');
+  assert.deepEqual(selectLibraryExperiments(patch, docs).experiments, []);
 });
 
 test('a hash mention in a test or unrelated source file yields no experiment', () => {

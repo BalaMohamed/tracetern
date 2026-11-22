@@ -7,7 +7,8 @@ import { isDeepStrictEqual, promisify } from 'node:util';
 import { openEvidence, type Inconclusive, type LibraryInvestigation } from './evidence.js';
 import { defaultLibraryPlan, expectedLookups, libraryFixture, validateLibraryPlan,
   type LibraryCase, type LibraryLookups, type LibraryResult } from './library-cases.js';
-import { keyGuide, observerGuide, persistenceGuide, plannerPaths, selectLibraryExperiments, type LibraryPlanning } from './library-planner.js';
+import { keyGuide, observerGuide, persistenceGuide, timestampGuide, plannerPaths,
+  selectLibraryExperiments, type LibraryPlanning } from './library-planner.js';
 import { digest, type HarnessIdentity, type Snapshot } from './revision.js';
 
 const execute = promisify(execFile);
@@ -18,6 +19,7 @@ const lockURL = new URL('package-lock.json', buildDirectory);
 // The f71e0b4 runner saved the same cases as a single, fixed suite.
 const originalSuiteSha256 = '8eb06fd88f2efd6abe5fb65fa34c88de4a2c1b8379beac3306a346ec03299249';
 const originalPlannerReplaySha256 = '6557869a9416c9b8dc69b68f7319e58f098e823ba997a45b4ad7d1a692696531';
+const observerReplaySha256 = 'fb45aafe0f79edfac71ee09acc5689577b1c80af039da505ad967bfaa80d1012';
 
 async function git(repository: string, ...args: string[]) {
   return (await execute('git', ['-C', repository, ...args], {
@@ -30,15 +32,19 @@ async function pin(repository: string, ref: string) {
 }
 
 async function planChange(repository: string, base: string, candidate: string) {
-  const paths = [keyGuide, persistenceGuide, observerGuide];
-  const [diff, docs] = await Promise.all([
+  async function readDocs(revision: string, paths: string[]) {
+    const entries = await git(repository, 'ls-tree', '-r', '-z', '--name-only', revision, '--', ...paths);
+    const texts = await Promise.all(entries.split('\0').filter(path => paths.includes(path)).map(async path =>
+      [path, await git(repository, 'cat-file', 'blob', revision + ':' + path)] as const));
+    return new Map(texts);
+  }
+  const [diff, docs, candidateDocs] = await Promise.all([
     git(repository, 'diff', '--no-ext-diff', '--no-textconv', '--no-renames', '--unified=0',
       base, candidate, '--', ...plannerPaths),
-    git(repository, 'ls-tree', '-r', '-z', '--name-only', base, '--', ...paths),
+    readDocs(base, [keyGuide, persistenceGuide, observerGuide, timestampGuide]),
+    readDocs(candidate, [timestampGuide]),
   ]);
-  const texts = await Promise.all(docs.split('\0').filter(path => paths.includes(path)).map(async path =>
-    [path, await git(repository, 'cat-file', 'blob', base + ':' + path)] as const));
-  return selectLibraryExperiments(diff, new Map(texts));
+  return selectLibraryExperiments(diff, docs, candidateDocs);
 }
 
 async function snapshot(repository: string, commit: string, toolLock: string): Promise<Snapshot> {
@@ -88,7 +94,7 @@ async function environment(lockSha256: string): Promise<HarnessIdentity> {
   };
 }
 
-async function compare(reference: Snapshot, candidate: Snapshot, plan: LibraryCase[]): Promise<LibraryResult> {
+async function compare(reference: Snapshot, candidate: Snapshot, plan: LibraryCase[], planning?: LibraryPlanning): Promise<LibraryResult> {
   const directory = await mkdtemp(join(tmpdir(), 'tracetern-query-run-'));
   const snapshotPath = join(directory, 'baseline.json');
   async function observe(side: string, artifact: Snapshot, baseline?: string) {
@@ -129,10 +135,17 @@ async function compare(reference: Snapshot, candidate: Snapshot, plan: LibraryCa
       // A passing one-query control isolates the baseline failure to the list expansion.
       const repaired = id === 'optimistic-query-count' && !referenceMatched && matched &&
         isDeepStrictEqual(reference.slice(0, 2), expected.slice(0, 2));
-      if (!referenceMatched && !repaired) {
-        throw new Error('Reference violates the documented cache behavior in ' + id);
+      const contractAdded = id === 'dehydration-timestamp' &&
+        planning?.experiments.find(experiment => experiment.id === id)?.contract.revision === 'candidate' &&
+        reference.every((value, index) => value === expected[index % 3]);
+      if (!referenceMatched && !repaired && !contractAdded) {
+        throw new Error('Reference violates the documented behavior in ' + id);
       }
-      return { id, expected, reference, candidate, matched, ...(repaired ? { repaired: true as const } : {}) };
+      return {
+        id, expected, reference, candidate, matched,
+        ...(repaired ? { repaired: true as const } : {}),
+        ...(contractAdded ? { contractAdded: true as const } : {}),
+      };
     });
     return { schemaVersion: 1, fixture: libraryFixture, verdict: checks.every(check => check.matched) ? 'pass' : 'regression', checks };
   } finally {
@@ -187,12 +200,14 @@ export async function investigateLibrary(request: Request) {
         isDeepStrictEqual(plan, defaultLibraryPlan);
       // This release adds a new case. Its changes leave the prior planned cases intact.
       const oldPlan = original?.environment.replaySha256 === originalPlannerReplaySha256 &&
-        !plan.includes('optimistic-query-count');
+        plan.every(id => defaultLibraryPlan.includes(id));
+      const oldObserver = original?.environment.replaySha256 === observerReplaySha256 &&
+        !plan.includes('dehydration-timestamp');
       if (original && (original.environment.node !== identity.node ||
-          (!oldSuite && !oldPlan && original.environment.replaySha256 !== identity.replaySha256))) {
+          (!oldSuite && !oldPlan && !oldObserver && original.environment.replaySha256 !== identity.replaySha256))) {
         throw new Error('Rerun requires compatible library replay code, plan and Node version');
       }
-      result = await compare(reference, candidate, plan);
+      result = await compare(reference, candidate, plan, planning);
     } catch (error) {
       result = { schemaVersion: 1, verdict: 'inconclusive', reason: error instanceof Error ? error.message : String(error) };
     }

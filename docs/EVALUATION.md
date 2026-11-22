@@ -36,4 +36,6 @@ I used PR #12633 as a development case for the observer experiment. A one-query 
 
 After fixing the observer experiment inputs, I ran the planner on [TanStack Query PR #11395](https://github.com/TanStack/query/pull/11395), which changes dehydration timestamps. The pinned base is `799a33cdadad19d008e57c6a60e716701860a9bd` and the candidate is `a97345fc7fa1d0deb0dec0a234877a59f1ce6750`.
 
-The planner selected `restore-baseline-cache` from the hydration diff and the persistence guide. The expected value was restored on both sides, and the saved run reproduced. This check covers cache restoration with a fixed snapshot timestamp. The new timestamp override requires its own experiment.
+The planner selected `restore-baseline-cache` from the hydration diff and the persistence guide. The expected value was restored on both sides, and the saved run reproduced. That check covers cache restoration with a fixed snapshot timestamp.
+
+The dedicated timestamp experiment now cites the contract added by the candidate. It observes two dehydrated queries with a controlled clock of 900. On PR #11395 the fallback used that clock, the client default yielded 444, and explicit overrides yielded 123 and 0. Each supplied timestamp skipped the clock. The baseline used 900 throughout, which is its behavior before the feature. A controlled mutation in a copy of the candidate replaced nullish coalescing with a truthiness check. TraceTern caught zero falling back to 444 and reproduced the regression by run ID.
