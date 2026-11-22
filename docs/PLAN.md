@@ -9,6 +9,7 @@
 | Measurement and replay | Measure calls through the worker's PostgreSQL client observer. Replay a saved plan after CLI and planner changes, and reject incompatible replay builds. |
 | Database-free library adapter | Run and replay the pinned TanStack Query key change through its public cache API. Exercise a controlled failure and keep Orders on its existing execution path. |
 | Diff and documentation planner | Cite source changes and base contracts for selected library experiments. Retain selection provenance, replay the subset, and measure coverage on a preselected PR. |
+| Observer transition experiment | Exercise a query resolving while the requested list grows. Use a stable-list control to distinguish a baseline repair from a candidate regression. |
 | External validation | Trial the adapter on independently selected trusted repositories. Measure retained counterexamples, false alarms and review time against the same coding assistant alone. Broaden target support where the trials justify it. |
 
 TraceTern supports the standalone Orders contract and the pinned TanStack Query Core layout. The planner accepts validated Orders experiments from a rule or an installed local model. The loopback viewer and stdio MCP adapter read both forms of saved evidence. The assistant can check a committed Orders fix against its saved case. The TanStack comparison is a development case with predetermined checks. External validation is the next milestone.

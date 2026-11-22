@@ -27,3 +27,13 @@ The pinned review workspaces were prepared. Cursor CLI `2026.11.19-f005e9d` requ
 npm run tracetern -- plan-library .tracetern/tanstack-query \
   816a0aab2e904cd5364d3b0f278582eccc660318 aab2d96e3a90f8f7515400fe3a86f9da40eb7107 --json
 ```
+
+## Observer experiment development
+
+I used PR #12633 as a development case for the observer experiment. A one-query control returned one result before and after the pending query resolved on both revisions. When the requested list grew to two queries, the baseline returned counts of 2 then 1, and the candidate returned 2 then 2. With the revisions reversed, TraceTern reported a regression. Both directions replayed using the saved artifacts. This development result leaves the original frozen comparison pending.
+
+## Separate hydration coverage check
+
+After fixing the observer experiment inputs, I ran the planner on [TanStack Query PR #11395](https://github.com/TanStack/query/pull/11395), which changes dehydration timestamps. The pinned base is `799a33cdadad19d008e57c6a60e716701860a9bd` and the candidate is `a97345fc7fa1d0deb0dec0a234877a59f1ce6750`.
+
+The planner selected `restore-baseline-cache` from the hydration diff and the persistence guide. The expected value was restored on both sides, and the saved run reproduced. This check covers cache restoration with a fixed snapshot timestamp. The new timestamp override requires its own experiment.

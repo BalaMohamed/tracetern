@@ -10,6 +10,7 @@ const libraryLabels = {
   'equivalent-object-keys': 'Reordered object properties',
   'distinct-array-keys': 'Distinct array orderings',
   'restore-baseline-cache': 'Restore the baseline cache snapshot',
+  'optimistic-query-count': 'Optimistic result counts, control then expanded',
 };
 const stages = { cold: 'Cold read', warm: 'Warm read', 'after-rename': 'Read after rename' };
 const queryLabels: Record<keyof QueryGroups, string> = {
@@ -202,7 +203,7 @@ function renderRun(run: RunEvidence) {
   main.replaceChildren(title);
   if (run.checks) {
     const table = element('table', 'queries');
-    table.append(element('caption', '', 'Public cache lookups'));
+    table.append(element('caption', '', 'Observed library behavior'));
     const header = table.createTHead().insertRow();
     for (const label of ['Check', 'Expected', 'Baseline', 'Candidate', 'Result']) {
       const cell = element('th', '', label);
@@ -216,7 +217,7 @@ function renderRun(run: RunEvidence) {
       const label = element('th', '', libraryLabels[check.id]);
       label.scope = 'row';
       row.append(label, ...[values(check.expected), values(check.reference), values(check.candidate),
-        check.matched ? 'Matched' : 'Differs'].map(value => element('td', '', value)));
+        check.repaired ? 'Repaired' : check.matched ? 'Matched' : 'Differs'].map(value => element('td', '', value)));
     }
     const section = element('section', 'request-section');
     section.append(table);

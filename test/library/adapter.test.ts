@@ -115,3 +115,27 @@ test('pinned TanStack Query change preserves all three public behaviors and repl
   assert.equal(replay.reproduced, true);
   assert.deepEqual(replay.checks, record.checks);
 });
+
+const observerRepo = process.env.TRACETERN_OBSERVER_REPO;
+test('observer experiment distinguishes a repair from a regression and replays both', {
+  skip: observerRepo ? false : 'Set TRACETERN_OBSERVER_REPO to a repository containing both PR #12633 commits',
+}, async t => {
+  const cwd = await mkdtemp(join(tmpdir(), 'tracetern-observer-test-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const base = '816a0aab2e904cd5364d3b0f278582eccc660318';
+  const candidate = 'aab2d96e3a90f8f7515400fe3a86f9da40eb7107';
+  const upstream = resolve(observerRepo!);
+  const repaired = run(cwd, 0, 'plan-library', upstream, base, candidate);
+  assert.deepEqual(repaired.plan, ['optimistic-query-count']);
+  assert.deepEqual(repaired.checks, [{
+    id: 'optimistic-query-count', expected: ['1', '1', '2', '2'], reference: ['1', '1', '2', '1'],
+    candidate: ['1', '1', '2', '2'], matched: true, repaired: true,
+  }]);
+  assert.equal(run(cwd, 0, 'replay', repaired.runId).reproduced, true);
+
+  const reverted = run(cwd, 1, 'plan-library', upstream, candidate, base);
+  assert.equal(reverted.checks[0]?.matched, false);
+  assert.equal(reverted.checks[0]?.repaired, undefined);
+  assert.deepEqual(reverted.checks[0]?.candidate, ['1', '1', '2', '1']);
+  assert.equal(run(cwd, 1, 'replay', reverted.runId).reproduced, true);
+});

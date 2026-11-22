@@ -3,6 +3,7 @@ import type { LibraryCase } from './library-cases.js';
 export const plannerVersion = 'diff-and-docs/v1';
 export const keyGuide = 'docs/framework/react/guides/query-keys.md';
 export const persistenceGuide = 'docs/framework/react/plugins/persistQueryClient.md';
+export const observerGuide = 'docs/framework/react/reference/functions/useQueries.md';
 export const plannerPaths = ['packages/query-core/src', 'packages/query-persist-client-core/src'];
 
 type Citation = { path: string; line: number; revision: 'base' | 'candidate'; excerpt: string };
@@ -48,6 +49,8 @@ export function selectLibraryExperiments(diff: string, docs: ReadonlyMap<string,
   const hydration = matchingChange(diff,
     /^packages\/(?:query-core\/src\/(?:hydration|utils)\.ts|query-persist-client-core\/src\/persist\.ts)$/,
     /\b(?:hydrate|dehydrate|queryHash|hashKey|persistQueryClientRestore)\b/);
+  const observers = matchingChange(diff, /^packages\/query-core\/src\/queriesObserver\.ts$/,
+    /\b(?:combineResult|notify|getOptimisticResult|observerMatches)\b/);
   const experiments: LibraryPlanning['experiments'] = [];
 
   function add(id: LibraryCase, change: Citation | undefined, path: string, promise: RegExp) {
@@ -63,5 +66,6 @@ export function selectLibraryExperiments(diff: string, docs: ReadonlyMap<string,
   add('equivalent-object-keys', hashes, keyGuide, /order of keys in objects.*considered equal/i);
   add('distinct-array-keys', hashes, keyGuide, /array item order matters/i);
   add('restore-baseline-cache', hydration, persistenceGuide, /hydrate.*previously persisted.*cache/i);
+  add('optimistic-query-count', observers, observerGuide, /combine.*the results of the queries/i);
   return { version: plannerVersion, experiments };
 }

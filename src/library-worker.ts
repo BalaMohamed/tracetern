@@ -6,12 +6,21 @@ interface Client {
   setQueryData(key: Key, value: string, options?: { updatedAt: number }): void;
   getQueryData(key: Key): string | undefined;
   clear(): void;
+  getQueryCache(): { find(filter: { queryKey: Key }): { promise?: Promise<unknown> } | undefined };
+}
+type QueryOptions = { queryKey: Key; queryFn: () => Promise<string> };
+type CombineCount = (results: unknown[]) => number;
+interface Observer {
+  subscribe(listener: () => void): () => void;
+  setQueries(queries: QueryOptions[], options: { combine: CombineCount }): void;
+  getOptimisticResult(queries: QueryOptions[], combine: CombineCount): [unknown[], (results: unknown[]) => number];
 }
 interface CacheState {
   queries: { dehydratedAt?: number }[];
 }
 interface QueryCore {
   QueryClient: new (options: { defaultOptions: { queries: { gcTime: number } } }) => Client;
+  QueriesObserver: new (client: Client, queries: QueryOptions[], options: { combine: CombineCount }) => Observer;
   dehydrate(client: Client): CacheState;
   hydrate(client: Client, state: CacheState): void;
 }
@@ -30,6 +39,34 @@ function seedSnapshot(client: Client): CacheState {
   // Fix the snapshot clock so replay uses the same serialized input.
   for (const query of state.queries) query.dehydratedAt = updatedAt + 1;
   return JSON.parse(JSON.stringify(state));
+}
+
+async function observeQueryCount(expanded: boolean): Promise<string[]> {
+  const client = createClient();
+  let finish!: (value: string) => void;
+  const pending = new Promise<string>(resolve => { finish = resolve; });
+  const initial = [{ queryKey: ['first'], queryFn: () => pending }];
+  const requested = expanded ? [...initial, { queryKey: ['second'], queryFn: async () => 'second' }] : initial;
+  const combine: CombineCount = results => results.length;
+  const observer = new core.QueriesObserver(client, initial, { combine });
+  const stop = observer.subscribe(() => {});
+  try {
+    observer.setQueries(initial, { combine });
+    const count = () => {
+      const [raw, combined] = observer.getOptimisticResult(requested, combine);
+      return String(combined(raw));
+    };
+    const before = count();
+    const inFlight = client.getQueryCache().find({ queryKey: initial[0]!.queryKey })?.promise;
+    if (!inFlight) throw new Error('Observer fixture did not start a query');
+    finish('resolved');
+    await inFlight;
+    if (client.getQueryData(initial[0]!.queryKey) !== 'resolved') throw new Error('Observer fixture query did not settle');
+    return [before, count()];
+  } finally {
+    stop();
+    client.clear();
+  }
 }
 
 const observations: LibraryLookups = {};
@@ -55,6 +92,9 @@ for (const id of plan) {
         observations[id] = [lookup(cache, ['persisted', { status: 'open' }])];
         break;
       }
+      case 'optimistic-query-count':
+        observations[id] = [...await observeQueryCount(false), ...await observeQueryCount(true)];
+        break;
     }
   } finally {
     cache.clear();

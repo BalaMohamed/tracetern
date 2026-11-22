@@ -5,9 +5,9 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual, promisify } from 'node:util';
 import { openEvidence, type Inconclusive, type LibraryInvestigation } from './evidence.js';
-import { expectedLookups, libraryFixture, libraryPlan, validateLibraryPlan,
+import { defaultLibraryPlan, expectedLookups, libraryFixture, validateLibraryPlan,
   type LibraryCase, type LibraryLookups, type LibraryResult } from './library-cases.js';
-import { keyGuide, persistenceGuide, plannerPaths, selectLibraryExperiments, type LibraryPlanning } from './library-planner.js';
+import { keyGuide, observerGuide, persistenceGuide, plannerPaths, selectLibraryExperiments, type LibraryPlanning } from './library-planner.js';
 import { digest, type HarnessIdentity, type Snapshot } from './revision.js';
 
 const execute = promisify(execFile);
@@ -17,6 +17,7 @@ const buildDirectory = new URL('../../adapters/tanstack/', import.meta.url);
 const lockURL = new URL('package-lock.json', buildDirectory);
 // The f71e0b4 runner saved the same cases as a single, fixed suite.
 const originalSuiteSha256 = '8eb06fd88f2efd6abe5fb65fa34c88de4a2c1b8379beac3306a346ec03299249';
+const originalPlannerReplaySha256 = '6557869a9416c9b8dc69b68f7319e58f098e823ba997a45b4ad7d1a692696531';
 
 async function git(repository: string, ...args: string[]) {
   return (await execute('git', ['-C', repository, ...args], {
@@ -29,7 +30,7 @@ async function pin(repository: string, ref: string) {
 }
 
 async function planChange(repository: string, base: string, candidate: string) {
-  const paths = [keyGuide, persistenceGuide];
+  const paths = [keyGuide, persistenceGuide, observerGuide];
   const [diff, docs] = await Promise.all([
     git(repository, 'diff', '--no-ext-diff', '--no-textconv', '--no-renames', '--unified=0',
       base, candidate, '--', ...plannerPaths),
@@ -121,13 +122,17 @@ async function compare(reference: Snapshot, candidate: Snapshot, plan: LibraryCa
     const trial = await observe('candidate', candidate, restore ? snapshotPath : undefined);
     const checks = plan.map(id => {
       const expected = expectedLookups[id];
-      if (!isDeepStrictEqual(expected, baseline.observations[id])) {
+      const reference = baseline.observations[id]!;
+      const candidate = trial.observations[id]!;
+      const matched = isDeepStrictEqual(expected, candidate);
+      const referenceMatched = isDeepStrictEqual(expected, reference);
+      // A passing one-query control isolates the baseline failure to the list expansion.
+      const repaired = id === 'optimistic-query-count' && !referenceMatched && matched &&
+        isDeepStrictEqual(reference.slice(0, 2), expected.slice(0, 2));
+      if (!referenceMatched && !repaired) {
         throw new Error('Reference violates the documented cache behavior in ' + id);
       }
-      return {
-        id, expected, reference: baseline.observations[id]!, candidate: trial.observations[id]!,
-        matched: isDeepStrictEqual(expected, trial.observations[id]),
-      };
+      return { id, expected, reference, candidate, matched, ...(repaired ? { repaired: true as const } : {}) };
     });
     return { schemaVersion: 1, fixture: libraryFixture, verdict: checks.every(check => check.matched) ? 'pass' : 'regression', checks };
   } finally {
@@ -146,7 +151,7 @@ export async function investigateLibrary(request: Request) {
     let candidate: Snapshot;
     let lockSha256: string;
     let planning: LibraryPlanning | undefined = original?.planning;
-    let plan = original?.plan ?? libraryPlan;
+    let plan = original?.plan ?? defaultLibraryPlan;
     if ('repository' in request) {
       const [baseCommit, candidateCommit] = await Promise.all([
         pin(request.repository, request.base), pin(request.repository, request.candidate),
@@ -179,9 +184,12 @@ export async function investigateLibrary(request: Request) {
     try {
       plan = validateLibraryPlan(plan);
       const oldSuite = original?.environment.replaySha256 === originalSuiteSha256 &&
-        isDeepStrictEqual(plan, libraryPlan);
+        isDeepStrictEqual(plan, defaultLibraryPlan);
+      // This release adds a new case. Its changes leave the prior planned cases intact.
+      const oldPlan = original?.environment.replaySha256 === originalPlannerReplaySha256 &&
+        !plan.includes('optimistic-query-count');
       if (original && (original.environment.node !== identity.node ||
-          (!oldSuite && original.environment.replaySha256 !== identity.replaySha256))) {
+          (!oldSuite && !oldPlan && original.environment.replaySha256 !== identity.replaySha256))) {
         throw new Error('Rerun requires compatible library replay code, plan and Node version');
       }
       result = await compare(reference, candidate, plan);

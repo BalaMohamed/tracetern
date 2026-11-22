@@ -70,7 +70,8 @@ try {
     } else if ('checks' in report) {
       console.log(report.fixture);
       for (const check of report.checks) {
-        console.log(check.id + ': ' + (check.matched ? 'matched' : 'differs') + ' · ' + JSON.stringify(check.candidate));
+        const outcome = check.repaired ? 'baseline failure repaired' : check.matched ? 'matched' : 'differs';
+        console.log(check.id + ': ' + outcome + ' · ' + JSON.stringify(check.candidate));
       }
       console.log('Verdict: ' + report.verdict);
     } else {
