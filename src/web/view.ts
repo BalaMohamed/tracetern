@@ -5,13 +5,17 @@ const main = document.querySelector<HTMLElement>('#investigation')!;
 const runs = document.querySelector<HTMLUListElement>('#runs')!;
 const refresh = document.querySelector<HTMLAnchorElement>('#refresh')!;
 const verdicts = { pass: 'Passed', regression: 'Regression', inconclusive: 'Inconclusive' };
-const libraryFixture = 'tanstack-query-keys/v1';
+const libraryNames = new Map([
+  ['tanstack-query-keys/v1', 'TanStack Query'],
+  ['zustand-vanilla/v1', 'Zustand'],
+]);
 const libraryLabels = {
   'equivalent-object-keys': 'Reordered object properties',
   'distinct-array-keys': 'Distinct array orderings',
   'restore-baseline-cache': 'Restore the baseline cache snapshot',
   'optimistic-query-count': 'Optimistic result counts, control then expanded',
   'dehydration-timestamp': 'Dehydration timestamps, fallback, client default, explicit, and zero',
+  'zustand-null-update': 'Merge, notification controls, and null updates',
 };
 const stages = { cold: 'Cold read', warm: 'Warm read', 'after-rename': 'Read after rename' };
 const queryLabels: Record<keyof QueryGroups, string> = {
@@ -60,7 +64,8 @@ function renderList(summaries: RunSummary[], active: string) {
     stamp.dateTime = run.createdAt;
     row.append(badge(run.verdict), stamp);
     const label = run.fixtureImplementation ?? shortCommit(run.candidateCommit);
-    const prefix = run.fixture === libraryFixture ? 'TanStack Query · ' : '';
+    const library = libraryNames.get(run.fixture);
+    const prefix = library ? library + ' · ' : '';
     link.append(row, element('code', 'run-label', prefix + shortCommit(run.baseCommit) + ' → ' + label));
     item.append(link);
     runs.append(item);
@@ -71,10 +76,10 @@ function commands(run: RunEvidence) {
   const details = element('details', 'commands');
   details.append(element('summary', '', 'Replay and source'));
   const list = element('dl', 'command-list');
-  const library = run.fixture === libraryFixture;
+  const library = libraryNames.get(run.fixture);
   for (const [label, command] of [
     ['Replay this case', (library ? 'npm run tracetern' : 'npm run demo') + ' -- replay ' + run.runId],
-    [library ? 'Inspect source in the TanStack checkout' : 'Inspect the candidate at its recorded commit',
+    [library ? 'Inspect source in the ' + library + ' checkout' : 'Inspect the candidate at its recorded commit',
       'git show ' + run.candidateCommit + ':' + run.sourcePath],
   ]) {
     const description = element('dd');
@@ -181,7 +186,7 @@ function evidence(run: RunEvidence, observed: NonNullable<RunEvidence['observed'
 function renderRun(run: RunEvidence) {
   const title = element('header', 'run-header');
   const titleLine = element('div', 'title-line');
-  const heading = run.fixture === libraryFixture ? 'TanStack Query investigation' : 'Orders investigation';
+  const heading = (libraryNames.get(run.fixture) ?? 'Orders') + ' investigation';
   titleLine.append(element('h1', '', heading), badge(run.verdict));
   const identity = element('p', 'identity');
   identity.append(

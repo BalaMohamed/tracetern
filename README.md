@@ -65,6 +65,23 @@ Run `npm run test:library` for the controlled failure and replay test. Set `TRAC
 
 Use `npm run tracetern -- plan-library <repository> <base> <candidate>` to choose a subset of the checks. The rule planner reads committed production hunks and checks them against the query-key and persistence guides at the base revision. It records a source hunk and a documentation line for each selection. The CLI prints those citations, and saved citations are available in the viewer and over MCP. Replay uses the stored selection and bundles. If the planner finds no supported case, it exits 2 with an empty plan and skips execution. See the [review trial](docs/EVALUATION.md).
 
+## Run a Zustand vanilla store experiment
+
+The Zustand adapter tests the [null state update fix](https://github.com/pmndrs/zustand/pull/2213), with controls for shallow merge and subscription notifications. Install the shared build tools with `npm ci --prefix adapters/tanstack --ignore-scripts`, then fetch the pinned Git objects:
+
+```sh
+git init .tracetern/zustand
+git -C .tracetern/zustand fetch --no-tags --depth=1 https://github.com/pmndrs/zustand.git \
+  f5561dfb05babb89773128d00fabda74ddd145d4 949b505a4b5414d5b249c413e9847bb0df559a42
+
+npm run tracetern -- compare-library .tracetern/zustand \
+  f5561dfb05babb89773128d00fabda74ddd145d4 949b505a4b5414d5b249c413e9847bb0df559a42 \
+  --adapter zustand
+npm run tracetern -- replay <run-id>
+```
+
+This adapter captures the standalone `src/vanilla.ts` and records the committed Yarn lock digest. It runs without installing Zustand dependencies. The browser and MCP expose its saved evidence through the same interfaces as the TanStack runs. Set `TRACETERN_ZUSTAND_REPO` to a local repository containing both commits to include it in the library or MCP tests.
+
 ## Choose an experiment
 
 For changes to how query observers combine results, the planner can select an experiment that resolves a pending query while the requested query list grows. The report lists counts before and after resolution for a one-query control, followed by counts for the growing list. A passing control and a baseline-only failure can establish a repair. Set `TRACETERN_OBSERVER_REPO` to a local repository containing both revisions from PR #12633 to run the upstream observer test.
@@ -112,11 +129,11 @@ codex mcp add tracetern -- node "$PWD/integrations/mcp/server.mjs" "$PWD"
 | Tool | Result |
 | --- | --- |
 | `list_runs` | Up to 25 recent runs in the configured repository |
-| `get_run` | Saved Orders measurements or TanStack cache checks, plus the candidate source reference |
+| `get_run` | Saved Orders measurements or library checks, plus the candidate source reference |
 | `replay_run` | A fresh result from the saved snapshots and plan |
 | `verify_candidate` | An Orders result from running the saved baseline and plan against the full commit ID of a fix |
 
-Include `--enable-execution` after the repository path to register the last two tools. Orders replays and verification launch a disposable PostgreSQL instance. TanStack replays launch Node workers directly. Each creates a separate run ID. The assistant receives the same evidence projection as the browser. It includes observed fixture values and Git references, while source snapshots, SQL text, and runner diagnostics stay in the local workflow.
+Include `--enable-execution` after the repository path to register the last two tools. Orders replays and verification launch a disposable PostgreSQL instance. Library replays launch Node workers directly. Each creates a separate run ID. The assistant receives the same evidence projection as the browser. It includes observed fixture values and Git references, while source snapshots, SQL text, and runner diagnostics stay in the local workflow.
 
 Run `npm --prefix integrations/mcp test` after building to exercise the server through a real stdio client.
 

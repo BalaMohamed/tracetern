@@ -81,25 +81,40 @@ test('MCP reads a recorded case, replays it, and verifies a committed fix', { ti
   await runner.close();
 });
 
-const upstream = process.env.TRACETERN_TANSTACK_REPO;
-test('MCP reads and replays pinned library evidence with an empty PATH', {
-  timeout: 25_000, skip: upstream ? false : 'Set TRACETERN_TANSTACK_REPO to run the upstream library case',
-}, async t => {
-  const repository = await mkdtemp(join(tmpdir(), 'tracetern-mcp-library-'));
-  t.after(() => rm(repository, { recursive: true, force: true }));
-  const recorded = spawnSync(process.execPath, [
-    join(root, 'dist/src/cli.js'), 'compare-library', resolve(upstream),
-    '33fe7c476276cbefa86786bbcc2d445fdf382614', 'e34066220996e1150535108646b3f24109feece7', '--json',
-  ], { cwd: repository, encoding: 'utf8', timeout: 15_000 });
-  assert.equal(recorded.status, 0, recorded.stderr + recorded.stdout);
-  const { runId, checks } = JSON.parse(recorded.stdout);
+const upstreamCases = [
+  {
+    name: 'TanStack Query', variable: 'TRACETERN_TANSTACK_REPO',
+    revisions: ['33fe7c476276cbefa86786bbcc2d445fdf382614', 'e34066220996e1150535108646b3f24109feece7'],
+    flags: [], fixture: 'tanstack-query-keys/v1',
+  },
+  {
+    name: 'Zustand', variable: 'TRACETERN_ZUSTAND_REPO',
+    revisions: ['f5561dfb05babb89773128d00fabda74ddd145d4', '949b505a4b5414d5b249c413e9847bb0df559a42'],
+    flags: ['--adapter', 'zustand'], fixture: 'zustand-vanilla/v1',
+  },
+];
+for (const { name, variable, revisions, flags, fixture } of upstreamCases) {
+  const upstream = process.env[variable];
+  test('MCP reads and replays ' + name + ' evidence with an empty PATH', {
+    timeout: 25_000, skip: upstream ? false : 'Set ' + variable + ' to run the upstream library case',
+  }, async t => {
+    const repository = await mkdtemp(join(tmpdir(), 'tracetern-mcp-library-'));
+    t.after(() => rm(repository, { recursive: true, force: true }));
+    const recorded = spawnSync(process.execPath, [
+      join(root, 'dist/src/cli.js'), 'compare-library', resolve(upstream),
+      ...revisions, ...flags, '--json',
+    ], { cwd: repository, encoding: 'utf8', timeout: 15_000 });
+    assert.equal(recorded.status, 0, recorded.stderr + recorded.stdout);
+    const { runId, checks } = JSON.parse(recorded.stdout);
 
-  const runner = await connect(t, repository, ['--enable-execution'], { PATH: '' });
-  const details = await runner.callTool({ name: 'get_run', arguments: { runId } });
-  assert.deepEqual(details.structuredContent.run.checks, checks);
-  const replay = await runner.callTool({ name: 'replay_run', arguments: { runId } });
-  assert.equal(replay.structuredContent?.reproduced, true, JSON.stringify(replay));
-  assert.deepEqual(replay.structuredContent.run.checks, checks);
-  assert.equal(replay.structuredContent.run.replayOf, runId);
-  await runner.close();
-});
+    const runner = await connect(t, repository, ['--enable-execution'], { PATH: '' });
+    const details = await runner.callTool({ name: 'get_run', arguments: { runId } });
+    assert.equal(details.structuredContent.run.fixture, fixture);
+    assert.deepEqual(details.structuredContent.run.checks, checks);
+    const replay = await runner.callTool({ name: 'replay_run', arguments: { runId } });
+    assert.equal(replay.structuredContent?.reproduced, true, JSON.stringify(replay));
+    assert.deepEqual(replay.structuredContent.run.checks, checks);
+    assert.equal(replay.structuredContent.run.replayOf, runId);
+    await runner.close();
+  });
+}

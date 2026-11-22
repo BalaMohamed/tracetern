@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { defaultExperiment, type Experiment } from './experiment.js';
 import type { Result } from './evidence.js';
-import { libraryFixture, type LibraryResult } from './library-cases.js';
+import { isLibraryFixture, type LibraryResult } from './library-cases.js';
 import type { LibraryPlanning } from './library-planner.js';
 
 type Completed = Exclude<Result, { verdict: 'inconclusive' }>;
@@ -88,7 +88,7 @@ export function getRun(directory: string, runId: string): RunEvidence | undefine
     `).get(runId);
     if (!row) return undefined;
 
-    if (row.fixture === libraryFixture) {
+    if (isLibraryFixture(row.fixture)) {
       const result = typeof row.completed === 'string' ? JSON.parse(row.completed) as LibraryResult : undefined;
       return {
         ...summary(row), sourcePath: row.source_path as string, planner: null,

@@ -195,3 +195,36 @@ test('dehydration timestamp distinguishes new support and catches a broken zero 
   assert.equal(failedReplay.reproduced, true);
   assert.deepEqual(failedReplay.checks, failure.checks);
 });
+
+const zustandRepo = process.env.TRACETERN_ZUSTAND_REPO;
+test('Zustand null update repair and reverse regression replay with the shared library runner', {
+  skip: zustandRepo ? false : 'Set TRACETERN_ZUSTAND_REPO to a repository containing both PR #2213 revisions',
+}, async t => {
+  const cwd = await mkdtemp(join(tmpdir(), 'tracetern-zustand-test-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const upstream = resolve(zustandRepo!);
+  const base = 'f5561dfb05babb89773128d00fabda74ddd145d4';
+  const candidate = '949b505a4b5414d5b249c413e9847bb0df559a42';
+  const repaired = run(cwd, 0, 'compare-library', upstream, base, candidate, '--adapter', 'zustand');
+  assert.equal(repaired.fixture, 'zustand-vanilla/v1');
+  assert.deepEqual(repaired.checks, [{
+    id: 'zustand-null-update',
+    expected: ['2:kept', '1', '1', 'null', 'null'],
+    reference: ['2:kept', '1', '1', '{"count":1}', '{"0":"v","1":"a","2":"l","3":"u","4":"e"}'],
+    candidate: ['2:kept', '1', '1', 'null', 'null'],
+    matched: true,
+    repaired: true,
+  }]);
+  const replay = run(cwd, 0, 'replay', repaired.runId);
+  assert.equal(replay.reproduced, true);
+  assert.deepEqual(replay.checks, repaired.checks);
+  const projected = getRun(join(cwd, '.tracetern'), replay.runId);
+  assert.equal(projected?.fixture, 'zustand-vanilla/v1');
+  assert.equal(projected?.sourcePath, 'src/vanilla.ts');
+  assert.deepEqual(projected?.checks, repaired.checks);
+
+  const reverted = run(cwd, 1, 'compare-library', upstream, candidate, base, '--adapter', 'zustand');
+  assert.equal(reverted.checks[0]?.matched, false);
+  assert.deepEqual(reverted.checks[0]?.candidate, repaired.checks[0]?.reference);
+  assert.equal(run(cwd, 1, 'replay', reverted.runId).reproduced, true);
+});

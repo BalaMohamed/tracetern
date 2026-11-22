@@ -39,3 +39,9 @@ After fixing the observer experiment inputs, I ran the planner on [TanStack Quer
 The planner selected `restore-baseline-cache` from the hydration diff and the persistence guide. The expected value was restored on both sides, and the saved run reproduced. That check covers cache restoration with a fixed snapshot timestamp.
 
 The dedicated timestamp experiment now cites the contract added by the candidate. It observes two dehydrated queries with a controlled clock of 900. On PR #11395 the fallback used that clock, the client default yielded 444, and explicit overrides yielded 123 and 0. Each supplied timestamp skipped the clock. The baseline used 900 throughout, which is its behavior before the feature. A controlled mutation in a copy of the candidate replaced nullish coalescing with a truthiness check. TraceTern caught zero falling back to 444 and reproduced the regression by run ID.
+
+## Onboarding a separate TypeScript repository
+
+I selected [Zustand PR #2213](https://github.com/pmndrs/zustand/pull/2213) as a known historical repair. The immutable inputs were parent `f5561dfb05babb89773128d00fabda74ddd145d4` and fix `949b505a4b5414d5b249c413e9847bb0df559a42`. The first attempt stopped at source capture because the existing runner expected TanStack's package layout. Zustand's standalone entry is `src/vanilla.ts` and the pinned revisions use `yarn.lock`.
+
+I moved those capture settings behind the adapter selection and routed the saved fixture through the generic library replay path. The merge, subscriber notification, and unsubscribe controls passed on both revisions. The baseline kept the previous data as an object when set to null, and the candidate returned null for both object and string stores. Reversing the revisions produced a regression. CLI replay and MCP replay both worked with an empty PATH. This measures onboarding and replay for a known contract.

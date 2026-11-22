@@ -2,10 +2,14 @@ import { compare, implementations } from './scenario.js';
 import { investigate, runWorker } from './investigation.js';
 import { getRun } from './evidence-view.js';
 import { investigateLibrary } from './library.js';
-import { libraryFixture } from './library-cases.js';
+import { isLibraryFixture, zustandFixture } from './library-cases.js';
 
 async function dispatch(args: string[]) {
   const [command, first, second] = args;
+  if (command === 'compare-library' && first && second && args[3] &&
+      args.length === 6 && args[4] === '--adapter' && args[5] === 'zustand') {
+    return investigateLibrary({ repository: first, base: second, candidate: args[3], fixture: zustandFixture });
+  }
   if ((command === 'compare-library' || command === 'plan-library') && first && second && args.length === 4) {
     return investigateLibrary({ repository: first, base: second, candidate: args[3]!, select: command === 'plan-library' });
   }
@@ -30,12 +34,12 @@ async function dispatch(args: string[]) {
     return investigate({ command, runId: first, candidate: second });
   }
   if (command === 'replay' && first && args.length === 2) {
-    if (getRun('.tracetern', first)?.fixture === libraryFixture) return investigateLibrary({ replayOf: first });
+    if (isLibraryFixture(getRun('.tracetern', first)?.fixture)) return investigateLibrary({ replayOf: first });
     return investigate({ command, runId: first });
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | compare-library|plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }

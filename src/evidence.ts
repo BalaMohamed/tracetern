@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { HarnessIdentity, Snapshot } from './revision.js';
 import type { compare, Implementation } from './scenario.js';
-import { libraryFixture, type LibraryCase, type LibraryResult } from './library-cases.js';
+import { isLibraryFixture, type LibraryCase, type LibraryFixture, type LibraryResult } from './library-cases.js';
 import type { LibraryPlanning } from './library-planner.js';
 
 type Comparison = ReturnType<typeof compare>;
@@ -28,7 +28,7 @@ export interface Investigation {
 }
 
 export interface LibraryInvestigation {
-  adapter: typeof libraryFixture;
+  adapter: LibraryFixture;
   plan: LibraryCase[];
   planning?: LibraryPlanning;
   reference: Snapshot;
@@ -64,7 +64,7 @@ export function openEvidence(directory: string) {
       },
       loadLibrary(id: string): LibraryInvestigation {
         const record = load(id);
-        if (record.adapter !== libraryFixture) throw new Error('Expected a TanStack Query investigation');
+        if (record.adapter === undefined || !isLibraryFixture(record.adapter)) throw new Error('Expected a library investigation');
         return record;
       },
       close: () => db.close(),

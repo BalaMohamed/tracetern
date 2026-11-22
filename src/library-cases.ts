@@ -1,4 +1,10 @@
 export const libraryFixture = 'tanstack-query-keys/v1';
+export const zustandFixture = 'zustand-vanilla/v1';
+export type LibraryFixture = typeof libraryFixture | typeof zustandFixture;
+
+export function isLibraryFixture(value: unknown): value is LibraryFixture {
+  return value === libraryFixture || value === zustandFixture;
+}
 
 // A missing cache value or timestamp is recorded as null.
 export const expectedLookups = {
@@ -13,6 +19,7 @@ export const expectedLookups = {
     '123', '123', 'clock unused',
     '0', '0', 'clock unused',
   ],
+  'zustand-null-update': ['2:kept', '1', '1', 'null', 'null'],
 } as const;
 
 export type LibraryCase = keyof typeof expectedLookups;
@@ -35,7 +42,7 @@ export function validateLibraryPlan(plan: unknown): LibraryCase[] {
 
 export interface LibraryResult {
   schemaVersion: 1;
-  fixture: typeof libraryFixture;
+  fixture: LibraryFixture;
   verdict: 'pass' | 'regression';
   checks: {
     id: LibraryCase;

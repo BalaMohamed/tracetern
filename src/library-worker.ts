@@ -29,7 +29,8 @@ interface QueryCore {
 const [entry, savedPlan, baselineFile] = process.argv.slice(2);
 if (!entry || !savedPlan) throw new Error('Missing library artifact or experiment plan');
 const plan = validateLibraryPlan(JSON.parse(savedPlan));
-const core: QueryCore = await import(entry);
+const module = await import(entry);
+const core: QueryCore = module;
 const createClient = (dehydrate?: DehydrateOptions) =>
   new core.QueryClient({ defaultOptions: { queries: { gcTime: Infinity }, dehydrate } });
 const lookup = (client: Client, key: Key) => client.getQueryData(key) ?? null;
@@ -91,9 +92,36 @@ function observeTimestamp(clientDefault?: number, override?: number): (string | 
   }
 }
 
+interface Store<State> {
+  setState(state: State | Partial<State>): void;
+  getState(): State;
+  subscribe(listener: () => void): () => void;
+}
+
+function observeNullUpdate(createStore: <State>(initial: () => State) => Store<State>): (string | null)[] {
+  const control = createStore(() => ({ count: 1, label: 'kept' }));
+  let notifications = 0;
+  const stop = control.subscribe(() => { notifications++; });
+  control.setState({ count: 2 });
+  const controlValue = control.getState();
+  const observed = [controlValue.count + ':' + controlValue.label, String(notifications)];
+  stop();
+  control.setState({ count: 3 });
+  const object = createStore<{ count: number } | null>(() => ({ count: 1 }));
+  const primitive = createStore<string | null>(() => 'value');
+  object.setState(null);
+  primitive.setState(null);
+  return [...observed, String(notifications),
+    JSON.stringify(object.getState()) ?? null, JSON.stringify(primitive.getState()) ?? null];
+}
+
 const observations: LibraryLookups = {};
 let snapshot: CacheState | undefined;
 for (const id of plan) {
+  if (id === 'zustand-null-update') {
+    observations[id] = observeNullUpdate(module.createStore);
+    continue;
+  }
   const cache = createClient();
   try {
     switch (id) {

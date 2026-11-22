@@ -2,12 +2,12 @@ import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 
 const resolve = createRequire(import.meta.url);
-const [source, hashDependency] = process.argv.slice(2);
-if (!source) throw new Error('Missing query-core snapshot directory');
+const [source, entry, hashDependency] = process.argv.slice(2);
+if (!source || !entry) throw new Error('Missing library snapshot directory or entry point');
 
 const result = await build({
   absWorkingDir: source,
-  entryPoints: ['index.ts'],
+  entryPoints: [entry],
   bundle: true,
   write: false,
   platform: 'node',
@@ -16,12 +16,12 @@ const result = await build({
   tsconfigRaw: '{}',
   logLevel: 'silent',
   plugins: [{
-    name: 'query-core-dependencies',
+    name: 'library-dependencies',
     setup(build) {
       build.onResolve({ filter: /^[^./]/ }, ({ path, kind }) => {
         if (kind === 'entry-point') return;
         if (path === 'stable-hash' && hashDependency === 'stable-hash') return { path: resolve.resolve(path) };
-        return { errors: [{ text: 'Unsupported query-core dependency: ' + path }] };
+        return { errors: [{ text: 'Unsupported library dependency: ' + path }] };
       });
     },
   }],
