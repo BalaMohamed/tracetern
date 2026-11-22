@@ -138,6 +138,11 @@ The JSON response includes the original lexical order and the model tag and dige
 Use `suggest` without `--ollama` for the model-free baseline. The Ollama output can only refer to shortlisted saved experiments.
 Installed model weights remain unchanged. Training a ranker would require independent relevance labels on distinct changes and evaluation on held-out repositories.
 
+## Evaluate experiment ranking
+
+The [PR ranking pilot](evaluation/ranking/README.md) provides a versioned dataset of public changes with relevance labels.
+Its benchmark compares keyword retrieval, a trained logistic ranker and optional local Ollama inference on held-out repositories.
+
 ## Choose an experiment
 
 For changes to how query observers combine results, the planner can select an experiment that resolves a pending query while the requested query list grows. The report lists counts before and after resolution for a one-query control, followed by counts for the growing list. A passing control and a baseline-only failure can establish a repair. Set `TRACETERN_OBSERVER_REPO` to a local repository containing both revisions from PR #12633 to run the upstream observer test.

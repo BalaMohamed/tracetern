@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "trainingCases": 8,
+  "trainingPairs": 32,
+  "testCases": 9,
+  "weights": [
+    -2.06102290044462,
+    4.786161398889904,
+    1.5796678977778136,
+    2.4456351680265906,
+    0.844062403957674
+  ],
+  "model": "ttempvnn/Huihui-gemma-4-12B-it-qat-q4_0-unquantized-abliterated-Q4-K-M:latest",
+  "modelDigest": "31f91ca54365ce66faac667e15f270b8826ff5b1827869c77dacc8cd8b9a0839",
+  "metrics": {
+    "keyword": {
+      "usefulAt1": 4,
+      "irrelevantAt1": 3,
+      "abstentions": 2,
+      "correctAbstentions": 2,
+      "meanNdcgOnUsefulCases": 1
+    },
+    "learned": {
+      "usefulAt1": 4,
+      "irrelevantAt1": 2,
+      "abstentions": 3,
+      "correctAbstentions": 3,
+      "meanNdcgOnUsefulCases": 1
+    },
+    "ollama": {
+      "usefulAt1": 2,
+      "irrelevantAt1": 3,
+      "abstentions": 4,
+      "correctAbstentions": 2,
+      "meanNdcgOnUsefulCases": 0.5
+    }
+  },
+  "cases": [
+    {
+      "repo": "apache/datafusion",
+      "pr": 20822,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "direct"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": []
+      }
+    },
+    {
+      "repo": "apache/datafusion",
+      "pr": 22960,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": []
+      }
+    },
+    {
+      "repo": "apache/datafusion",
+      "pr": 24680,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ]
+      }
+    },
+    {
+      "repo": "apache/datafusion",
+      "pr": 27079,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ]
+      }
+    },
+    {
+      "repo": "apache/datafusion",
+      "pr": 27531,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1",
+          "orders-list/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1"
+        ],
+        "learned": [],
+        "ollama": []
+      }
+    },
+    {
+      "repo": "pmndrs/zustand",
+      "pr": 241,
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1"
+        ],
+        "ollama": [
+          "zustand-vanilla/v1"
+        ]
+      }
+    },
+    {
+      "repo": "pmndrs/zustand",
+      "pr": 2580,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1"
+        ],
+        "ollama": []
+      }
+    },
+    {
+      "repo": "pmndrs/zustand",
+      "pr": 3442,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ]
+      }
+    },
+    {
+      "repo": "pmndrs/zustand",
+      "pr": 3206,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "zustand-vanilla/v1",
+          "tanstack-query-keys/v1",
+          "datafusion-parquet-pushdown/v1",
+          "orders-list/v1"
+        ]
+      }
+    }
+  ]
+}

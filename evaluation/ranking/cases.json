@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "split": "train",
+      "repo": "TanStack/query",
+      "pr": 11073,
+      "base": "33fe7c476276cbefa86786bbcc2d445fdf382614",
+      "head": "e34066220996e1150535108646b3f24109feece7",
+      "diffSha256": "fc91afd20e376f2d97d1691e6af0a1f3965e921c73df7112f29513808387c6e5",
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "rationale": "The change replaces query-key hashing. The key-equivalence and ordered-array cases exercise the unchanged key identity rules."
+    },
+    {
+      "split": "train",
+      "repo": "TanStack/query",
+      "pr": 11395,
+      "base": "799a33cdadad19d008e57c6a60e716701860a9bd",
+      "head": "a97345fc7fa1d0deb0dec0a234877a59f1ce6750",
+      "diffSha256": "60b1f73b658300aabbded59277ce4ba974e344b6d8f88aed4c877ea7aeecdf86",
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "rationale": "The dehydration timestamp case covers override, zero, defaults and fallback for this PR."
+    },
+    {
+      "split": "train",
+      "repo": "TanStack/query",
+      "pr": 12633,
+      "base": "816a0aab2e904cd5364d3b0f278582eccc660318",
+      "head": "aab2d96e3a90f8f7515400fe3a86f9da40eb7107",
+      "diffSha256": "de71d2704ecb02d8594d13167d02252a31eb30b1c713f8ae4261748340116308",
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "rationale": "The optimistic observer case covers the growing query list while an existing query resolves."
+    },
+    {
+      "split": "train",
+      "repo": "duckdb/duckdb",
+      "pr": 22266,
+      "base": "53efe54b52a9ed0ab79f76f68cd173da987b0f91",
+      "head": "adeebf82dc0d4207638ecbcb176786e691013732",
+      "diffSha256": "44aef188dee071504ff8a2e719012fb536ac7bfe5fc0dcbfba5ac9bfdfcfcc87",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "Struct access and casts in a Parquet scan overlap, but the fixture counts row filtering and cannot verify which columns the projection decodes."
+    },
+    {
+      "split": "train",
+      "repo": "duckdb/duckdb",
+      "pr": 24101,
+      "base": "8806a9f8638cf876f979762a8161c83a02ea9bc6",
+      "head": "42aef7c21d049a3d5815a5cb53304acf84698287",
+      "diffSha256": "9a10c0facc7ce24349c755c360a821b2cc4d8126ea2a78e331ca9ca0a5bc2559",
+      "labels": {},
+      "rationale": "Bloom pruning for IN predicates is measured in row groups. The saved fixture uses equality and measures rows filtered during decoding."
+    },
+    {
+      "split": "train",
+      "repo": "vuejs/pinia",
+      "pr": 3144,
+      "base": "70eacb6749c81ce2b220ccceaf9b756c981016a7",
+      "head": "bd6b73c5c0db2a254ab2949fe6810b622b1c8f9e",
+      "diffSha256": "96f6a594a50a0819d528c27a8133ddada5a006ce4a95eb8f6d5ce01ff35f3a22",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "Notification and unsubscribe are applicable controls. The saved fixture subscribes once and does not exercise duplicate Vue watchers."
+    },
+    {
+      "split": "train",
+      "repo": "vuejs/pinia",
+      "pr": 2054,
+      "base": "5368a6a4b5ed67aa3acf6e2b992e26bf54ad3d52",
+      "head": "b1ee42d81e2937922130bb1fc9f2376259c6cb66",
+      "diffSha256": "d6051f8216ca870f749c228aaef9bd4053d209631e1c018089033b0c5f12dc48",
+      "labels": {},
+      "rationale": "The behavior concerns overriding a reset method through a plugin. The saved state fixture does not exercise reset or plugin precedence."
+    },
+    {
+      "split": "train",
+      "repo": "vuejs/pinia",
+      "pr": 2359,
+      "base": "8cda62bfbb660c371daf8853918dc931c2b61a9c",
+      "head": "87c031c5bda1cf47837c231f8d912fe914d03cb7",
+      "diffSha256": "c2cd06f18be25fc02eaeaeaaa3f5895bf6770b03ab9ca8d009734fc06482a7a6",
+      "labels": {},
+      "rationale": "Documentation-only change. No application behavior changed in the diff."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion",
+      "pr": 20822,
+      "base": "15bc6bd5c8bdce8511eecdc237eacb50f5392703",
+      "head": "0e05fb33cf759d3db407d7ca45b49effed7aeae6",
+      "diffSha256": "c43cab3ca7e252e9464b6b51a5866c0bb13beb8d07a3e85512bacfe01786b915",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "direct"
+      },
+      "rationale": "The PR introduces row-level pushdown of struct field filters. The saved check compares the filtered IDs and measures whether the scanner filtered rows. The saved releases are separate from these PR revisions."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion",
+      "pr": 22960,
+      "base": "e20763ce773c31ab67ec448e9d64d773a8df8435",
+      "head": "0124e7c604e4f4be5e121ee3b634968d10b22f7c",
+      "diffSha256": "78e4262f58609d2dc5cd041b1033a9a31845fdec60e79f0bc891c06b56c25eff",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "The adapted struct predicate is a correctness control for the row-filter path. The fixture does not measure path-grouping allocations or multiple field accesses."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion",
+      "pr": 24680,
+      "base": "1f5be0e70d0ea9705544b74f7ad83bd2130bbcb4",
+      "head": "ec4b3f282cfb82693cd1fac89eced5f7f5a2dd14",
+      "diffSha256": "5fe99cc2d3d526b31acd60c5cf9e9911c39c50577c6439a101dce4771bcbaa64",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "The saved case checks the schema-adapter cast path. Explicit invalid casts, evolved field nullability and decimal conversion need distinct inputs."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion",
+      "pr": 27079,
+      "base": "b8534c7fd836f23e99f3f95fccea53cd7e167bff",
+      "head": "71beb85baa6fe18bc940820c1b91b7bd959be6dd",
+      "diffSha256": "6ba2849a28a33f0936648382bfd438d39f63ffe955b456b89048f21e5ee9bd96",
+      "labels": {},
+      "rationale": "Exact reverse sort and LIMIT need ordering and scan-volume assertions. The saved experiment compares unordered row membership and predicate work."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion",
+      "pr": 27531,
+      "base": "547677637d4a454a333f914e6f9da10315e71178",
+      "head": "7f9ac951b1c1c7c0cf00573557c792e53d4c49d1",
+      "diffSha256": "c0dc5c29452237a0ecb9b2580a26cf14d82dcde20de8f13087d03ba7f12772ac",
+      "labels": {},
+      "rationale": "The primary contract is SQL unparser round-trip fidelity. The Parquet fixture never unparses or re-plans SQL."
+    },
+    {
+      "split": "test",
+      "repo": "pmndrs/zustand",
+      "pr": 241,
+      "base": "ca63289543eb562d59c9b4d3139c4ec9edf66cf7",
+      "head": "b918ed61ed18a3bd48cabea8f1ff675316b32a68",
+      "diffSha256": "38dc538cf2e06c3c83453693d322e898e3549c73c85b8e868dafd724c55f8500",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "A subscriber still needs to fire once, but the saved check only counts notifications. It does not check the previous-state callback argument."
+    },
+    {
+      "split": "test",
+      "repo": "pmndrs/zustand",
+      "pr": 2580,
+      "base": "3842f195166efe741ee1f045820dbbf42232b443",
+      "head": "efa1f02c8934f5b95ace75e3f41a7fe02b11456e",
+      "diffSha256": "8a456a58fbac8d059a4388c87a103efc0cbc9e1fbda883b21094b242a27e7ac0",
+      "labels": {},
+      "rationale": "The change enforces complete replacement state at TypeScript compile time. The saved experiment executes compiled JavaScript."
+    },
+    {
+      "split": "test",
+      "repo": "pmndrs/zustand",
+      "pr": 3442,
+      "base": "f0252e5db1e3b059d6dce606ef2206b261706e9d",
+      "head": "750f86967fa53e08afa84ac86cad5c51c202c8b7",
+      "diffSha256": "695832cc431d550a5f35aba418a6ff7151e30f787d024427b08ea71f72bfa95e",
+      "labels": {},
+      "rationale": "The diff adds React subscription tests without changing production behavior. A vanilla runtime case cannot adjudicate this test-only change."
+    },
+    {
+      "split": "test",
+      "repo": "pmndrs/zustand",
+      "pr": 3206,
+      "base": "2cc19881fad6defaabe4a2628609ab79fce6068f",
+      "head": "958440378637d3e8fcb5847961a3a35edb29123d",
+      "diffSha256": "8f2f4b3d618dd914c0f74d1c6df3dc94244b1d111dd354d9faf6fa0c715893d6",
+      "labels": {},
+      "rationale": "The persist middleware now returns the storage promise. The vanilla state experiment does not install middleware or await storage."
+    }
+  ]
+}
