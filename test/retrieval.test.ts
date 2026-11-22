@@ -7,7 +7,9 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { datafusionFixture, openEvidence } from '../src/evidence.js';
 import type { DataFusionInvestigation } from '../src/datafusion.js';
-import { suggestExperiments } from '../src/retrieval.js';
+import { rankExperiments, suggestExperiments } from '../src/retrieval.js';
+
+import { zustandFixture } from '../src/library-cases.js';
 
 const probe = {
   commit: 'a'.repeat(40), sourcePath: 'schema_rewriter.rs', pushdown: true,
@@ -58,4 +60,49 @@ test('diff retrieval counts original experiment variants once and cites changed 
   assert.deepEqual(suggestExperiments(patch(path, '// struct predicate schema'), directory).suggestions, []);
   assert.deepEqual(suggestExperiments(patch('tests/pushdown.rs', 'checkStructPredicate(schema)'), directory).suggestions, []);
   assert.deepEqual(suggestExperiments(patch('other/src/main.rs', 'checkStructPredicate(schema)'), directory).suggestions, []);
+
+  let order: string[] = [datafusionFixture];
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    if (url.endsWith('/api/tags')) {
+      return Response.json({ models: [{ name: 'fixture:latest', digest: 'model-digest', size: 1024 }] });
+    }
+    assert.equal(url, 'http://127.0.0.1:11434/api/generate');
+    const prompt = JSON.parse(JSON.parse(String(init.body)).prompt);
+    assert.deepEqual(prompt.candidates.map((item: { fixture: string }) => item.fixture), [datafusionFixture]);
+    assert.equal(prompt.diff, diff);
+    return Response.json({ done: true, response: JSON.stringify(order) });
+  });
+  const ranked = await rankExperiments(diff, 'fixture:latest', directory);
+  assert.equal(ranked.method, 'ollama/v1');
+  assert.equal(ranked.suggestions[0]?.example.runId, duplicate);
+  assert.deepEqual(ranked.suggestions, suggestions);
+  order = [];
+  assert.match((await rankExperiments(diff, 'fixture:latest', directory)).reason!, /abstained/);
+  order = ['invented-fixture'];
+  await assert.rejects(rankExperiments(diff, 'fixture:latest', directory), /invalid or duplicate/);
+});
+
+
+test('local reranking can reverse the lexical order without changing saved evidence', async t => {
+  const cwd = await mkdtemp(join(tmpdir(), 'tracetern-ranking-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const store = openEvidence(cwd);
+  const snapshot = { commit: probe.commit, tree: 'tree', sourcePath: 'src/vanilla.ts',
+    lockSha256: 'lock', moduleSha256: 'module', module: 'saved module' };
+  store.save(evidence);
+  const zustand = store.save({ adapter: zustandFixture, reference: snapshot, candidate: snapshot,
+    plan: ['zustand-null-update'], result: { fixture: zustandFixture, schemaVersion: 1, verdict: 'pass', checks: [] },
+    environment: { fixture: zustandFixture, node: process.version, harnessSha256: 'harness', lockSha256: 'lock' },
+  });
+  store.close();
+
+  const diff = patch('datafusion/datasource-parquet/src/row_filter.rs', 'checkStructPredicate(schema)')
+    + patch('src/vanilla.ts', 'replaceStore()');
+  t.mock.method(globalThis, 'fetch', async (url: string) => Response.json(url.endsWith('/api/tags')
+    ? { models: [{ name: 'fixture:latest', digest: 'model-digest', size: 1024 }] }
+    : { done: true, response: JSON.stringify([zustandFixture, datafusionFixture]) }));
+  const report = await rankExperiments(diff, 'fixture:latest', cwd);
+  assert.deepEqual('lexicalOrder' in report && report.lexicalOrder, [datafusionFixture, zustandFixture]);
+  assert.deepEqual(report.suggestions.map(item => item.fixture), [zustandFixture, datafusionFixture]);
+  assert.equal(report.suggestions[0]?.example.runId, zustand);
 });

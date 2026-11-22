@@ -7,16 +7,21 @@ import { isLibraryFixture, zustandFixture } from './library-cases.js';
 
 import { investigateDataFusion } from './datafusion.js';
 import { datafusionFixture } from './evidence.js';
-import { suggestExperiments } from './retrieval.js';
+import { rankExperiments, suggestExperiments } from './retrieval.js';
+import { browseModels, pullModel } from './ollama.js';
 
 async function readDiff(path: string) {
   const file = await open(path);
   try {
     const maxBytes = 1024 * 1024;
     const buffer = Buffer.alloc(maxBytes + 1);
-    const { bytesRead } = await file.read({ buffer });
-    if (bytesRead > maxBytes) throw new Error('Diff exceeds 1 MiB');
-    return buffer.toString('utf8', 0, bytesRead);
+    let size = 0;
+    while (size <= maxBytes) {
+      const { bytesRead } = await file.read(buffer, size, buffer.length - size, null);
+      if (bytesRead === 0) return buffer.toString('utf8', 0, size);
+      size += bytesRead;
+    }
+    throw new Error('Diff exceeds 1 MiB');
   } finally {
     await file.close();
   }
@@ -62,7 +67,7 @@ async function dispatch(args: string[]) {
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama <model-tag>] | models [pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -72,8 +77,34 @@ const flag = args.indexOf('--json');
 const json = flag >= 0;
 if (json) args.splice(flag, 1);
 try {
-  if (args[0] === 'suggest' && args[1] && args.length === 2) {
-    const report = suggestExperiments(await readDiff(args[1]));
+  if (args[0] === 'models') {
+    if (args.length === 1) {
+      const report = await browseModels();
+      if (json) console.log(JSON.stringify(report, null, 2));
+      else {
+        console.log('Installed local models');
+        for (const model of report.installed) console.log('  ' + model.tag + ' · ' + (model.size / 1e9).toFixed(2) + ' GB');
+        if (!report.installed.length) console.log('  None');
+        console.log('Ollama catalog · approximate download size');
+        for (const model of report.catalog) {
+          console.log('  ' + model.tag + ' · ' + model.downloadGB + ' GB' + (model.installed ? ' · installed' : ''));
+        }
+      }
+    } else if (args.length === 3 && args[1] === 'pull' && args[2]) {
+      const result = await pullModel(args[2], (status, percent) => {
+        if (!json) console.error(status + (percent === undefined ? '' : ' · ' + percent + '%'));
+      });
+      console.log(json ? JSON.stringify(result, null, 2) : 'Installed ' + result.tag + ' · ' + result.digest);
+    } else {
+      throw new Error('Usage: tracetern models [pull <model-tag>] [--json]');
+    }
+  } else if (args[0] === 'suggest') {
+    const [, patch, flag, model] = args;
+    if (!patch || (args.length !== 2 && !(args.length === 4 && flag === '--ollama' && model))) {
+      throw new Error('Usage: tracetern suggest <diff-file> [--ollama <model-tag>] [--json]');
+    }
+    const diff = await readDiff(patch);
+    const report = model ? await rankExperiments(diff, model) : suggestExperiments(diff);
     if (json) console.log(JSON.stringify(report, null, 2));
     else if (report.reason) console.log(report.reason);
     else for (const item of report.suggestions) {

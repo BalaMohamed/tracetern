@@ -1,3 +1,4 @@
+import { generateLocal } from './ollama.js';
 import { validateExperiment, type Experiment } from './experiment.js';
 import type { Snapshot } from './revision.js';
 
@@ -30,23 +31,6 @@ function changes(before: string, after: string) {
   return after.split('\n').map(line => line.trim()).filter(line => line && !existing.has(line)).join('\n').slice(0, 8000);
 }
 
-async function localRequest(path: string, init?: RequestInit) {
-  const response = await fetch('http://127.0.0.1:11434' + path, {
-    ...init, redirect: 'error', signal: AbortSignal.timeout(120_000),
-  });
-  if (!response.ok) throw new Error('Local Ollama ' + path + ' returned HTTP ' + response.status);
-  return response.json();
-}
-
-async function installedDigest(model: string): Promise<string> {
-  const tags = await localRequest('/api/tags');
-  const entry = tags.models?.find((item: { name: string }) => item.name === model);
-  if (!entry?.digest || !entry.size || entry.remote_model || entry.remote_host || model.endsWith(':cloud')) {
-    throw new Error('Choose an installed local model using its exact Ollama tag');
-  }
-  return entry.digest;
-}
-
 export async function propose(planner: Planner, reference: Snapshot, candidate: Snapshot): Promise<Proposal> {
   const added = changes(reference.module, candidate.module);
   const removed = changes(candidate.module, reference.module);
@@ -56,16 +40,7 @@ export async function propose(planner: Planner, reference: Snapshot, candidate: 
     const experiment: Experiment = { steps: cacheChange ? ['read','rename','read'] : ['read','read'], customerId: 1 };
     return { planner, version, experiment };
   }
-  const modelDigest = await installedDigest(planner.model);
-  const response = await localRequest('/api/generate', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model: planner.model, stream: false, format: schema, options: { temperature: 0 },
-      system: instructions, prompt: JSON.stringify({ removed, added }) }),
-  });
-  if (!response.done || typeof response.response !== 'string' || response.response.length > 4096) {
-    throw new Error('Invalid or incomplete local planner response');
-  }
-  const experiment = validateExperiment(JSON.parse(response.response));
-  if (await installedDigest(planner.model) !== modelDigest) throw new Error('Local model changed during generation');
+  const { value, modelDigest } = await generateLocal(planner.model, schema, instructions, { removed, added });
+  const experiment = validateExperiment(value);
   return { planner, version, modelDigest, temperature: 0, experiment };
 }

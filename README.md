@@ -122,6 +122,22 @@ Each result includes the matching paths and terms, the known scope of the saved 
 Replays, follow-up verifications, and identical repeats of the same fixture, revisions, mode and plan add no extra examples.
 An unmatched diff exits 2. Recommendations describe prior evidence, and replay runs the saved case against its original inputs.
 
+## Browse and use local Ollama models
+
+Start Ollama with its default loopback listener. The terminal catalog shows exact tags, approximate download sizes and which models are already installed.
+TraceTern uses Ollama's local model store for downloads.
+
+```sh
+npm run tracetern -- models
+npm run tracetern -- models pull qwen2.5-coder:1.5b
+npm run tracetern -- suggest change.patch --ollama qwen2.5-coder:1.5b --json
+```
+
+The optional Ollama step reranks or abstains from the lexical shortlist using the diff and supported experiment scopes.
+The JSON response includes the original lexical order and the model tag and digest when inference ran.
+Use `suggest` without `--ollama` for the model-free baseline. The Ollama output can only refer to shortlisted saved experiments.
+Installed model weights remain unchanged. Training a ranker would require independent relevance labels on distinct changes and evaluation on held-out repositories.
+
 ## Choose an experiment
 
 For changes to how query observers combine results, the planner can select an experiment that resolves a pending query while the requested query list grows. The report lists counts before and after resolution for a one-query control, followed by counts for the growing list. A passing control and a baseline-only failure can establish a repair. Set `TRACETERN_OBSERVER_REPO` to a local repository containing both revisions from PR #12633 to run the upstream observer test.
