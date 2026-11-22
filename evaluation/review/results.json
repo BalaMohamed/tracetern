@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "repo": "TanStack/query",
+      "pr": 9954,
+      "traceTern": {
+        "wallMs": 711,
+        "verdict": "inconclusive",
+        "reasonCode": "shared-failure",
+        "plan": [
+          "optimistic-query-count"
+        ],
+        "checks": [
+          {
+            "id": "optimistic-query-count",
+            "expected": [
+              "1",
+              "1",
+              "2",
+              "2"
+            ],
+            "reference": [
+              "1",
+              "1",
+              "2",
+              "1"
+            ],
+            "candidate": [
+              "1",
+              "1",
+              "2",
+              "1"
+            ],
+            "matched": false
+          }
+        ]
+      },
+      "baseline": {
+        "wallMs": 17406,
+        "confirmed": 1,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": false
+      },
+      "assisted": {
+        "wallMs": 11075,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "adjudication": "The baseline reviewer identified a missed subscriber notification after a speculative read. The independent probe demonstrated it. The assisted reviewer abstained."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 11253,
+      "traceTern": {
+        "wallMs": 120,
+        "verdict": "inconclusive",
+        "reasonCode": "no-coverage"
+      },
+      "baseline": {
+        "wallMs": 14391,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "assisted": {
+        "wallMs": 13402,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "adjudication": "Both reviewers abstained. TraceTern did not select a saved experiment for the default timestamp path."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 11512,
+      "traceTern": {
+        "wallMs": 100,
+        "verdict": "inconclusive",
+        "reasonCode": "no-coverage"
+      },
+      "baseline": {
+        "wallMs": 22565,
+        "confirmed": 0,
+        "unresolved": 2,
+        "falseAlarms": 0,
+        "abstained": false
+      },
+      "assisted": {
+        "wallMs": 21289,
+        "confirmed": 0,
+        "unresolved": 2,
+        "falseAlarms": 0,
+        "abstained": false
+      },
+      "adjudication": "Both reviewers reported edge cases concerning cache identity and preservation of structured values. The trial did not independently reproduce either claim."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 12658,
+      "traceTern": {
+        "wallMs": 502,
+        "verdict": "pass",
+        "plan": [
+          "optimistic-query-count"
+        ],
+        "checks": [
+          {
+            "id": "optimistic-query-count",
+            "expected": [
+              "1",
+              "1",
+              "2",
+              "2"
+            ],
+            "reference": [
+              "1",
+              "1",
+              "2",
+              "2"
+            ],
+            "candidate": [
+              "1",
+              "1",
+              "2",
+              "2"
+            ],
+            "matched": true
+          }
+        ]
+      },
+      "baseline": {
+        "wallMs": 11745,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "assisted": {
+        "wallMs": 10480,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "adjudication": "Both reviewers abstained. TraceTern passed the observer count control, which did not measure retention."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 11489,
+      "traceTern": {
+        "wallMs": 158,
+        "verdict": "inconclusive",
+        "reasonCode": "no-coverage"
+      },
+      "baseline": {
+        "wallMs": 10777,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "assisted": {
+        "wallMs": 9572,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "adjudication": "Both reviewers identified a type-test-only change and abstained."
+    },
+    {
+      "repo": "pmndrs/zustand",
+      "pr": 3471,
+      "traceTern": {
+        "wallMs": 87,
+        "verdict": "inconclusive",
+        "reasonCode": "no-coverage"
+      },
+      "baseline": {
+        "wallMs": 9070,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "assisted": {
+        "wallMs": 9515,
+        "confirmed": 0,
+        "unresolved": 0,
+        "falseAlarms": 0,
+        "abstained": true
+      },
+      "adjudication": "Both reviewers identified a middleware-test-only change and abstained."
+    }
+  ]
+}

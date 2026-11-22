@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "traceTernCommit": "9b0cdaacf6a58860646463249b9e9bf7a9c07c25",
+  "reviewer": {
+    "host": "Codex CLI",
+    "version": "0.162.1",
+    "model": "gpt-6.1-terra",
+    "reasoningEffort": "low",
+    "maxSeconds": 150
+  },
+  "seeds": [
+    {
+      "repo": "TanStack/query",
+      "base": "33fe7c476276cbefa86786bbcc2d445fdf382614",
+      "head": "e34066220996e1150535108646b3f24109feece7",
+      "command": "compare-library"
+    },
+    {
+      "repo": "TanStack/query",
+      "base": "816a0aab2e904cd5364d3b0f278582eccc660318",
+      "head": "aab2d96e3a90f8f7515400fe3a86f9da40eb7107",
+      "command": "plan-library"
+    },
+    {
+      "repo": "TanStack/query",
+      "base": "799a33cdadad19d008e57c6a60e716701860a9bd",
+      "head": "a97345fc7fa1d0deb0dec0a234877a59f1ce6750",
+      "command": "plan-library"
+    },
+    {
+      "repo": "pmndrs/zustand",
+      "base": "f5561dfb05babb89773128d00fabda74ddd145d4",
+      "head": "949b505a4b5414d5b249c413e9847bb0df559a42",
+      "command": "compare-library",
+      "args": [
+        "--adapter",
+        "zustand"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "repo": "TanStack/query",
+      "pr": 9954,
+      "base": "0d07172687b6df34054c33855812dc4f3eec02a5",
+      "head": "4c928c0ac752a318d7b4c91dc4c18e34b6173324",
+      "diffSha256": "febd70cef9c879b569aaf82c630dd895f64e7ec8594f555725570f77348be6bf",
+      "grade": "direct",
+      "rationale": "Adding queries with a stable combine callback changes the same optimistic count asserted by the observer experiment."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 11253,
+      "base": "9fa03e65b6b87fea120c0f384838716b5dae2657",
+      "head": "2ef4c1139c0e6dc28dbc3000b2a8e9e465166127",
+      "diffSha256": "4bf47ff5043be9703289f428f629c5e8438d8a2482f0edd758e266fe7c24702d",
+      "grade": "direct",
+      "rationale": "The dehydrateQuery refactor exercises the clock timestamp path checked by the dehydration experiment. This label concerns the default clock branch."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 11512,
+      "base": "3212966a3681e02d14eb79e9cce0d3265b046877",
+      "head": "9938d5599c242cc7db8366da0f6b074c42db5db8",
+      "diffSha256": "b53bb46a5ba6db8753f5a166c4e708f4ebacd50e0c82a8825e7395a3dd2a24c9",
+      "grade": "control",
+      "rationale": "The cache-key checks cover ordinary object ordering. They omit objects with their own constructor property."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 12658,
+      "base": "78432497d348ca7977c6700a5b0339591bbf8bfe",
+      "head": "d2d1d202f1d9037cb1d697cb4eeb3afc314e74fa",
+      "diffSha256": "6aa56d33e4520581b69ccd62f2ef774902ddfe72a99ad7296c4f964b766a797f",
+      "grade": "control",
+      "rationale": "The observer case checks result counts. The changed requirement concerns retention after an observer moves off a query."
+    },
+    {
+      "repo": "TanStack/query",
+      "pr": 11489,
+      "base": "2a18d24e8a3a71e961dc9763a82bec4f1dd1ba6f",
+      "head": "3e1f826eaaee6ab88a9b70b04d4064a635c619b1",
+      "diffSha256": "953172b7be2f3c7cc1374640ff30487cedff9ce672064901122bd1b3425355ee",
+      "grade": "gap",
+      "rationale": "The changed tests concern types on the hydration API. Runtime observations cannot establish type inference."
+    },
+    {
+      "repo": "pmndrs/zustand",
+      "pr": 3471,
+      "base": "32013285083648e8d58ba1f76d73b9bdc02fef50",
+      "head": "62a421fc8e54be7310cce337511c322e021173ff",
+      "diffSha256": "11098ffcca40d7d2f8f5a11d4ca4fc27eec0b019e245613a5c2c932122f542b9",
+      "grade": "gap",
+      "rationale": "The change tests Immer middleware. The saved experiment targets runtime behavior of the standalone vanilla store."
+    }
+  ]
+}
