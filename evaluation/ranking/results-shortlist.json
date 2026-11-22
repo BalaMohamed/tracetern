@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "dataset": "shortlist",
+  "trainingCases": 16,
+  "trainingPairs": 64,
+  "testCases": 10,
+  "weights": [
+    -1.3423412069094829,
+    3.876253182513229,
+    1.2674227967411775,
+    2.0586292566226563,
+    0.7266523659793007
+  ],
+  "model": "ttempvnn/Huihui-gemma-4-12B-it-qat-q4_0-unquantized-abliterated-Q4-K-M:latest",
+  "modelDigest": "31f91ca54365ce66faac667e15f270b8826ff5b1827869c77dacc8cd8b9a0839",
+  "metrics": {
+    "keyword": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 1,
+      "abstentions": 8,
+      "correctAbstentions": 7,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "learned": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 0,
+      "abstentions": 9,
+      "correctAbstentions": 8,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "keywordShortlist": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 0,
+      "abstentions": 9,
+      "correctAbstentions": 8,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "learnedShortlist": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 0,
+      "abstentions": 9,
+      "correctAbstentions": 8,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "ollama": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 3,
+      "abstentions": 6,
+      "correctAbstentions": 5,
+      "meanNdcgOnUsefulCases": 0.5
+    },
+    "ollamaShortlist": {
+      "usefulAt1": 1,
+      "irrelevantAt1": 0,
+      "abstentions": 9,
+      "correctAbstentions": 8,
+      "meanNdcgOnUsefulCases": 0.5
+    }
+  },
+  "cases": [
+    {
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 13,
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [
+          "tanstack-query-keys/v1"
+        ],
+        "learnedShortlist": [
+          "tanstack-query-keys/v1"
+        ],
+        "ollama": [
+          "tanstack-query-keys/v1",
+          "datafusion-parquet-pushdown/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": [
+          "tanstack-query-keys/v1"
+        ]
+      }
+    },
+    {
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 25,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 17,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 5,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "apache/parquet-java",
+      "pr": 856,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "apache/parquet-java",
+      "pr": 3250,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "apache/parquet-java",
+      "pr": 3827,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "apache/parquet-java",
+      "pr": 1030,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "epoberezkin/fast-json-stable-stringify",
+      "pr": 3,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [],
+        "ollamaShortlist": []
+      }
+    },
+    {
+      "repo": "epoberezkin/fast-json-stable-stringify",
+      "pr": 26,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "keywordShortlist": [],
+        "learnedShortlist": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ],
+        "ollamaShortlist": []
+      }
+    }
+  ]
+}

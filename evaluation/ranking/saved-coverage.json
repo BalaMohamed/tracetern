@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "runId": "19c5559a-24d1-4ea4-bfa6-8a80642d4ab3",
+      "fixture": "datafusion-parquet-pushdown/v1",
+      "verdict": "pass",
+      "passedChecks": [
+        "unoptimized control IDs",
+        "inferred control IDs",
+        "scalar control IDs",
+        "adapted struct IDs",
+        "rows pruned by Parquet pushdown"
+      ],
+      "measuredOrders": false
+    },
+    {
+      "runId": "30903991-8a4d-465b-9fab-ae18fd3e1af2",
+      "fixture": "datafusion-parquet-pushdown/v1",
+      "verdict": "regression",
+      "passedChecks": [
+        "unoptimized control IDs",
+        "inferred control IDs",
+        "scalar control IDs",
+        "adapted struct IDs"
+      ],
+      "measuredOrders": false
+    },
+    {
+      "runId": "9ccc1fd7-8f5e-4ded-8db8-2e116e7ba568",
+      "fixture": "datafusion-parquet-pushdown/v1",
+      "verdict": "regression",
+      "passedChecks": [
+        "unoptimized control IDs",
+        "inferred control IDs",
+        "scalar control IDs"
+      ],
+      "measuredOrders": false
+    },
+    {
+      "runId": "d1c63e93-0e0c-41fc-b580-aa9847ff92ee",
+      "fixture": "zustand-vanilla/v1",
+      "verdict": "pass",
+      "passedChecks": [
+        "zustand-null-update"
+      ],
+      "measuredOrders": false
+    },
+    {
+      "runId": "c6b52714-6fef-40d1-900c-e19a270d54ca",
+      "fixture": "tanstack-query-keys/v1",
+      "verdict": "pass",
+      "passedChecks": [
+        "restore-baseline-cache",
+        "dehydration-timestamp"
+      ],
+      "measuredOrders": false
+    },
+    {
+      "runId": "43ec9c70-e678-46bf-8fc3-37ea96a7b0d7",
+      "fixture": "tanstack-query-keys/v1",
+      "verdict": "pass",
+      "passedChecks": [
+        "optimistic-query-count"
+      ],
+      "measuredOrders": false
+    },
+    {
+      "runId": "26fcd1f1-41b5-4600-b19d-d1e6a5b1eca5",
+      "fixture": "tanstack-query-keys/v1",
+      "verdict": "pass",
+      "passedChecks": [
+        "restore-baseline-cache"
+      ],
+      "measuredOrders": false
+    },
+    {
+      "runId": "aeb0fccb-222c-4aa2-90bb-c7089f4a4823",
+      "fixture": "tanstack-query-keys/v1",
+      "verdict": "pass",
+      "passedChecks": [
+        "equivalent-object-keys",
+        "distinct-array-keys",
+        "restore-baseline-cache"
+      ],
+      "measuredOrders": false
+    }
+  ]
+}

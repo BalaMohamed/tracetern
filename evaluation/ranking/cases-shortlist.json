@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "split": "test",
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 13,
+      "base": "eb687c156d8e87228a9fa1b2041b5ec23ca2a47a",
+      "head": "8b53f176f1afc541d61a34310aa309a2c60f9b7a",
+      "diffSha256": "5c069fdadace13436cf7ad381ca0eedc24c3524ab9504e131102784d76cd5d5a",
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "rationale": "The change replaces the array classifier and object key collector. The saved checks exercise both array order and object-key order invariance."
+    },
+    {
+      "split": "test",
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 25,
+      "base": "547244f61dc04b77a90d4c627a079ae5a9ace138",
+      "head": "a6e8b00a39ee372fee9cbb0787826ff486c53bea",
+      "diffSha256": "5898de81ea6b0a6888b00fb08172aea695f47f56a5152e6e11a754fff62827e4",
+      "labels": {},
+      "rationale": "Cycle handling needs a recursive reference and the cycles option. Neither saved cache-key check builds a cyclic input."
+    },
+    {
+      "split": "test",
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 17,
+      "base": "4cff539ecf0310e7a1700d5a45f339a4038f139c",
+      "head": "7135fba3f03c6f97d801047c53fab90c26aacfa8",
+      "diffSha256": "89d5ef952763b3a8d824f702ff9e94bc497f04ba765d95c03d7963c48a992674",
+      "labels": {},
+      "rationale": "The public declaration now accepts primitive inputs. The saved cache-key tests check ordinary runtime object and array keys."
+    },
+    {
+      "split": "test",
+      "repo": "ljharb/json-stable-stringify",
+      "pr": 5,
+      "base": "7a80ff6a9ba24801f58f1d1175b6527accdf9cd0",
+      "head": "1b117480abdfe8d2a29d3ce9fefc46d7181ba2fa",
+      "diffSha256": "9491a781a08099ce2e76db014be79280ae3de280ddb0ed4adc9f5cfc8823ea88",
+      "labels": {},
+      "rationale": "The change passes a property getter to a custom comparator. The existing key assertions use default canonical ordering and never install a comparator."
+    },
+    {
+      "split": "test",
+      "repo": "apache/parquet-java",
+      "pr": 856,
+      "base": "fdde49a847e0fa465a2988b13979391ee84524b8",
+      "head": "c96707c5588ea957ada27be848b404eaa0013150",
+      "diffSha256": "22eb7c85a20636245b41b1ce742ed856dd57e815f4fc72f4ffb8d46900b272de",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "Comparing row membership with and without filtering is a useful control. The saved case does not exercise the Java reader’s null filter configuration."
+    },
+    {
+      "split": "test",
+      "repo": "apache/parquet-java",
+      "pr": 3250,
+      "base": "4aa2ea91863274aebb1eded243ce275912c16010",
+      "head": "0e6eefba0889132c8554cec0ed437dcd3efaaade",
+      "diffSha256": "b4bba58276b6c339d28449d5b38d55b60171b82f4baf8ad93550ebcb3134184a",
+      "labels": {},
+      "rationale": "The defect concerns short reads of Bloom bitsets from an input stream. Row filtering never observes how many bitset bytes were read."
+    },
+    {
+      "split": "test",
+      "repo": "apache/parquet-java",
+      "pr": 3827,
+      "base": "4b37c193e2f796d553a20cc57ec9835ceaa1c95c",
+      "head": "18c26d686d8ce716453b008a100b1aac351437fb",
+      "diffSha256": "2f429aae7cfe9eab3fea84d69c7b3c378ad64a2c1a845b5c1834d96a24e1d213",
+      "labels": {},
+      "rationale": "Bloom writer paths must distinguish literal dots from nested column paths. The scan fixture writes no Bloom filters and has no colliding columns."
+    },
+    {
+      "split": "test",
+      "repo": "apache/parquet-java",
+      "pr": 1030,
+      "base": "261f7d2679407c833545b56f4c85a4ae8b5c9ed4",
+      "head": "de06c6fdf765b04b1993fe14b34286fefcfc329c",
+      "diffSha256": "814a984c4e551b883d19650f3a726e43475a790fa5c12ffbb3edf58ba8384786",
+      "labels": {},
+      "rationale": "Index-range short circuiting needs a column index and measurements of predicate evaluation. The existing scan experiment measures decoder row pruning."
+    },
+    {
+      "split": "test",
+      "repo": "epoberezkin/fast-json-stable-stringify",
+      "pr": 3,
+      "base": "e0017726aa0cf7696c6685c27a5d7529e8e5e7cc",
+      "head": "c14306cd98055dfb8e0680d2aa92f9e2dbadfa61",
+      "diffSha256": "eace4272615a81125f56ff7f0c7d75b8ccffc60737e20080f2c26fa259f75e1c",
+      "labels": {},
+      "rationale": "The change adds TypeScript declarations. No saved runtime assertion checks type resolution or signatures."
+    },
+    {
+      "split": "test",
+      "repo": "epoberezkin/fast-json-stable-stringify",
+      "pr": 26,
+      "base": "bca5fccb9c255177bfcfe2ea701720c4991afce9",
+      "head": "1834d97a4c254ef95ecd537df85cd91703ad995a",
+      "diffSha256": "4afa469d3d776a1a749b5c46e1a526c64469e08a522a3e3eec20a00274970f0e",
+      "labels": {},
+      "rationale": "The engines field declares package compatibility. Stable hashing checks do not exercise package installation across Node versions."
+    }
+  ]
+}

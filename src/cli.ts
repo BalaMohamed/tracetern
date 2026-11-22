@@ -7,6 +7,7 @@ import { isLibraryFixture, zustandFixture } from './library-cases.js';
 
 import { investigateDataFusion } from './datafusion.js';
 import { datafusionFixture } from './evidence.js';
+import { rankerWeights, rankLearnedExperiments } from './experiment-ranker.js';
 import { rankExperiments, suggestExperiments } from './retrieval.js';
 import { modelCommand, selectedModel } from './model-picker.js';
 
@@ -69,7 +70,7 @@ async function dispatch(args: string[]) {
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama [model-tag]] | models [pick [model-tag] | pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> [--ollama [model-tag] | --learned <ranking-report>] | models [pick [model-tag] | pull <model-tag>] | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -82,14 +83,18 @@ try {
   if (args[0] === 'models') {
     await modelCommand(args.slice(1), json);
   } else if (args[0] === 'suggest') {
-    const [, patch, flag, model] = args;
-    if (!patch || (args.length !== 2 && !(flag === '--ollama' && (args.length === 3 || args.length === 4)))) {
-      throw new Error('Usage: tracetern suggest <diff-file> [--ollama [model-tag]] [--json]');
+    const [, patch, flag, option] = args;
+    const useOllama = flag === '--ollama' && (args.length === 3 || args.length === 4);
+    const useLearned = flag === '--learned' && args.length === 4 && option;
+    if (!patch || (args.length !== 2 && !useOllama && !useLearned)) {
+      throw new Error('Usage: tracetern suggest <diff-file> [--ollama [model-tag] | --learned <ranking-report>] [--json]');
     }
-    const tag = flag === '--ollama' ? model ?? await selectedModel() : undefined;
-    if (flag === '--ollama' && !tag) throw new Error('Select a local model with models pick or pass its exact tag');
+    const tag = useOllama ? option ?? await selectedModel() : undefined;
+    if (useOllama && !tag) throw new Error('Select a local model with models pick or pass its exact tag');
     const diff = await readDiff(patch);
-    const report = tag ? await rankExperiments(diff, tag) : suggestExperiments(diff);
+    const report = useLearned
+      ? rankLearnedExperiments(diff, rankerWeights(JSON.parse(await readDiff(useLearned))))
+      : tag ? await rankExperiments(diff, tag) : suggestExperiments(diff);
     if (json) console.log(JSON.stringify(report, null, 2));
     else if (report.reason) {
       console.log(report.reason);

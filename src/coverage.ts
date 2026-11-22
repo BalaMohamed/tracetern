@@ -1,5 +1,5 @@
 import { datafusionFixture } from './evidence.js';
-import type { RunEvidence } from './evidence-view.js';
+import { getRun, retrievalRuns, type RunEvidence } from './evidence-view.js';
 import { libraryFixture, zustandFixture } from './library-cases.js';
 
 const contracts = {
@@ -52,11 +52,39 @@ export function coverageTargets(files: ReadonlyMap<string, readonly string[]>): 
   return [...targets.values()];
 }
 
-export function coveredTargets(run: RunEvidence, targets: readonly CoverageTarget[]) {
-  const passed = new Set(run.checks?.filter(check => check.matched).map(check => check.id));
-  return targets.filter(target => target.fixture === run.fixture && (target.checks.length
-    ? target.checks.every(check => passed.has(check))
-    : run.verdict === 'pass' && run.observed?.callMetric === 'postgres-client-calls'));
+export interface RecordedCoverage {
+  runId: string;
+  fixture: string;
+  verdict: RunEvidence['verdict'];
+  passedChecks: string[];
+  measuredOrders: boolean;
+}
+
+export function readRecordedCoverage(directory: string): RecordedCoverage[] {
+  return retrievalRuns(directory).flatMap(summary => {
+    const run = getRun(directory, summary.runId);
+    return run ? [{
+      runId: run.runId, fixture: run.fixture, verdict: run.verdict,
+      passedChecks: run.checks?.filter(check => check.matched).map(check => check.id) ?? [],
+      measuredOrders: run.verdict === 'pass' && run.observed?.callMetric === 'postgres-client-calls',
+    }] : [];
+  });
+}
+
+export function buildCoverageShortlist(records: readonly RecordedCoverage[], targets: readonly CoverageTarget[]) {
+  const shortlist = new Map<string, { record: RecordedCoverage; coverage: CoverageTarget[] }>();
+  for (const record of records) {
+    const coverage = targets.filter(target => target.fixture === record.fixture && (target.checks.length
+      ? target.checks.every(check => record.passedChecks.includes(check))
+      : record.measuredOrders));
+    if (coverage.length === 0) continue;
+    const previous = shortlist.get(record.fixture);
+    if (!previous || coverage.length > previous.coverage.length ||
+        (coverage.length === previous.coverage.length && record.verdict === 'pass' && previous.record.verdict !== 'pass')) {
+      shortlist.set(record.fixture, { record, coverage });
+    }
+  }
+  return shortlist;
 }
 
 export function keepCovered(order: readonly string[], targets: readonly CoverageTarget[]) {

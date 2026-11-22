@@ -115,7 +115,8 @@ test('local reranking can reverse the lexical order without changing saved evide
 test('coverage requires observed checks and rejects adjacent unsupported behavior', async t => {
   const cwd = await mkdtemp(join(tmpdir(), 'tracetern-coverage-'));
   t.after(() => rm(cwd, { recursive: true, force: true }));
-  const store = openEvidence(cwd);
+  const directory = join(cwd, '.tracetern');
+  const store = openEvidence(directory);
   const snapshot = { commit: probe.commit, tree: 'tree', sourcePath: 'src/utils/hash.ts',
     lockSha256: 'lock', moduleSha256: 'module', module: 'saved module' };
   const checkIds = ['equivalent-object-keys', 'distinct-array-keys'] as const;
@@ -134,13 +135,27 @@ test('coverage requires observed checks and rejects adjacent unsupported behavio
 
   const comet = patch('native/core/src/execution/operators/dynamic_filter/parquet_reader/schema_adapter.rs',
     'preserveConversionError(schema)');
-  const blocked = suggestExperiments(comet, cwd);
+  const blocked = suggestExperiments(comet, directory);
   assert.equal(blocked.targets[0]?.behavior, 'Parquet join conversion errors');
   assert.deepEqual(blocked.suggestions, []);
 
   const swr = patch('src/utils/hash.ts', 'return stableHash(key)');
-  const suggestions = suggestExperiments(swr, cwd).suggestions;
+  const suggestions = suggestExperiments(swr, directory).suggestions;
   assert.equal(suggestions.length, 1);
   assert.equal(suggestions[0]?.example.runId, original);
   assert.deepEqual(suggestions[0]?.coverage[0]?.checks, checkIds);
+
+  const file = join(cwd, 'outside-repo.patch');
+  const reportFile = join(cwd, 'weights.json');
+  await writeFile(file, swr);
+  await writeFile(reportFile, JSON.stringify({ schemaVersion: 1, weights: [-100, 0, 0, 0, 0] }));
+  const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url));
+  const result = spawnSync(process.execPath, [cli, 'suggest', file, '--learned', reportFile, '--json'], {
+    cwd, encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+  const ranked = JSON.parse(result.stdout);
+  assert.equal(ranked.method, 'learned/v1');
+  assert.equal(ranked.suggestions[0]?.example.runId, original);
+  assert.ok(ranked.suggestions[0]?.score < 0.5);
 });

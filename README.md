@@ -143,8 +143,10 @@ Installed model weights remain unchanged. Training a ranker would require indepe
 
 ## Evaluate experiment ranking
 
-The [PR ranking benchmark](evaluation/ranking/README.md) provides three datasets of public changes with relevance labels.
+The [PR ranking benchmark](evaluation/ranking/README.md) provides four datasets of public changes with relevance labels.
 Its benchmark compares keyword retrieval, a trained logistic ranker and optional local Ollama inference on held-out repositories.
+For learned ordering in the normal CLI, use `suggest change.patch --learned evaluation/ranking/results-shortlist.json` with a version 1 ranking report.
+All three modes start with the same shortlist of saved runs that contain the required assertions.
 
 ## Choose an experiment
 

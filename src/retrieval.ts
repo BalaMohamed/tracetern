@@ -1,8 +1,8 @@
 import { generateLocal } from './ollama.js';
 import { datafusionFixture } from './evidence.js';
 import { libraryFixture, zustandFixture } from './library-cases.js';
-import { getRun, retrievalRuns } from './evidence-view.js';
-import { coverageTargets, coveredTargets } from './coverage.js';
+import { getRun } from './evidence-view.js';
+import { buildCoverageShortlist, coverageTargets, readRecordedCoverage } from './coverage.js';
 
 export const experimentProfiles = [
   { fixture: datafusionFixture, paths: /(?:datasource-parquet|physical-expr-adapter)\/src\//,
@@ -53,23 +53,20 @@ export function suggestExperiments(diff: string, directory = '.tracetern') {
   const changes = productionChanges(diff);
   const targets = coverageTargets(changes);
   const files = [...changes].map(([path, lines]) => [path, wordsIn(lines.join(' '))] as const);
-  const runs = retrievalRuns(directory);
+  const runs = targets.some(target => target.fixture) ? readRecordedCoverage(directory) : [];
+  const eligible = buildCoverageShortlist(runs, targets);
   const suggestions = experimentProfiles.flatMap(profile => {
     const matching = [...files].filter(([path]) => profile.paths.test(path)).flatMap(([path, words]) => {
       const concepts = profile.concepts.filter(concept => words.has(concept));
       return concepts.length >= 2 ? [{ path, concepts }] : [];
     });
-    const cases = runs.filter(run => run.fixture === profile.fixture);
-    const eligible = cases.flatMap(run => {
-      const evidence = getRun(directory, run.runId);
-      const coverage = evidence ? coveredTargets(evidence, targets) : [];
-      return coverage.length ? [{ run, coverage }] : [];
-    });
-    const exemplar = eligible.find(item => item.run.verdict === 'pass') ?? eligible[0];
-    if (!exemplar) return [];
+    const entry = eligible.get(profile.fixture);
+    const exemplar = entry && getRun(directory, entry.record.runId);
+    if (!entry || !exemplar) return [];
+    const { checks, observed, planning, plan, planner, sourcePath, ...example } = exemplar;
     const score = new Set(matching.flatMap(match => match.concepts)).size;
-    return [{ fixture: profile.fixture, scope: profile.scope, score, matching, coverage: exemplar.coverage,
-      distinctCases: cases.length, example: exemplar.run }];
+    return [{ fixture: profile.fixture, scope: profile.scope, score, matching, coverage: entry.coverage,
+      distinctCases: runs.filter(run => run.fixture === profile.fixture).length, example }];
   }).sort((left, right) => right.score - left.score || left.fixture.localeCompare(right.fixture));
   return {
     schemaVersion: 1,
@@ -91,7 +88,7 @@ export async function rankExperiments(diff: string, model: string, directory = '
   const suggestions = order.map(id => byId.get(id)!);
   return { ...baseline, method: 'ollama/v1', model, modelDigest,
     lexicalOrder: baseline.suggestions.map(item => item.fixture), suggestions,
-    reason: suggestions.length ? null : 'The local model abstained from the lexical shortlist.' };
+    reason: suggestions.length ? null : 'The local model abstained from the saved coverage shortlist.' };
 }
 
 export async function rankExperimentIds(diff: string, model: string, candidates: readonly { fixture: string; scope: string }[]) {

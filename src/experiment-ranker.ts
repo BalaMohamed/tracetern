@@ -1,4 +1,4 @@
-import { experimentProfiles, productionChanges, wordsIn } from './retrieval.js';
+import { experimentProfiles, productionChanges, suggestExperiments, wordsIn } from './retrieval.js';
 
 export type Grade = 'direct' | 'control';
 export type Features = [codeOverlap: number, pathOverlap: number, pathMatch: number, matchingCodeOverlap: number];
@@ -35,6 +35,25 @@ export function benchmarkInput(diff: string) {
 function probability(weights: readonly number[], features: Features) {
   const logit = features.reduce((sum, value, index) => sum + value * weights[index + 1]!, weights[0]!);
   return 1 / (1 + Math.exp(-logit));
+}
+
+export function rankerWeights(report: unknown): number[] {
+  if (report === null || typeof report !== 'object' || !('schemaVersion' in report) ||
+      report.schemaVersion !== 1 || !('weights' in report) || !Array.isArray(report.weights) ||
+      report.weights.length !== 5 || report.weights.some(value => !Number.isFinite(value))) {
+    throw new Error('Expected a version 1 ranking report with five finite weights');
+  }
+  return report.weights;
+}
+
+export function rankLearnedExperiments(diff: string, weights: number[], directory = '.tracetern') {
+  const baseline = suggestExperiments(diff, directory);
+  const { candidates } = benchmarkInput(diff);
+  const features = new Map(candidates.map(candidate => [candidate.fixture, candidate.features]));
+  const suggestions = baseline.suggestions.map(item => ({ ...item,
+    score: probability(weights, features.get(item.fixture)!),
+  })).sort((a, b) => b.score - a.score || a.fixture.localeCompare(b.fixture));
+  return { ...baseline, method: 'learned/v1', suggestions };
 }
 
 // Full-batch, class-balanced logistic regression. The small fixed penalty

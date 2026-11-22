@@ -86,3 +86,23 @@ For [Comet #6067](https://github.com/apache/datafusion-comet/pull/6067), the pro
 bash evaluation/ranking/fetch.sh coverage
 npm run evaluate:ranking --silent -- --dataset coverage --ollama <installed-model-tag>
 ```
+
+## Saved coverage as the shortlist
+
+The [shortlist holdout](cases-shortlist.json) pins ten public PRs from json-stable-stringify, Parquet Java, and fast-json-stable-stringify. Each repository is outside the training set and all earlier holdouts. Two PRs have a useful match and eight have none. The model fit uses the same 16 training PRs and the same weights as the previous coverage trial.
+
+Both the terminal and the benchmark build the shortlist from records of passing assertions. The benchmark reads a [fixed snapshot](saved-coverage.json) of original saved runs so that anyone can reproduce the shortlist without a local evidence database. Replays, repeat observations, and follow-up verifications contribute no examples. A single saved run must contain every required check for a behavior. The implementation then lets keyword search, logistic regression, or Ollama order the eligible candidates. The keyword and learned scores still affect order when several experiments qualify, and a low score can no longer remove a candidate that has recorded coverage. Ollama can abstain and is called only for a nonempty shortlist.
+
+| Ranker | Useful first picks, baseline → shortlist | Irrelevant first picks, baseline → shortlist | Correct abstentions, baseline → shortlist |
+| --- | ---: | ---: | ---: |
+| Keyword | 1 → 1 | 1 → 0 | 7 → 8 |
+| Learned | 1 → 1 | 0 → 0 | 8 → 8 |
+| Ollama | 1 → 1 | 3 → 0 | 5 → 8 |
+
+All three surfaced the cache-key experiment for [json-stable-stringify #13](https://github.com/ljharb/json-stable-stringify/pull/13). The keyword and learned baselines omitted it. Both had previously suggested a useful control for [Parquet Java #856](https://github.com/apache/parquet-java/pull/856). The shortlist missed that case because the recognizer did not identify the null-filter behavior from the changed code. This is a selection evaluation with a small, deliberately hard holdout. The [complete report](results-shortlist.json) records per-PR ranks and the Ollama model digest.
+
+```sh
+bash evaluation/ranking/fetch.sh shortlist
+npm run evaluate:ranking --silent -- --dataset shortlist --ollama <installed-model-tag>
+npm run tracetern -- suggest change.patch --learned evaluation/ranking/results-shortlist.json
+```

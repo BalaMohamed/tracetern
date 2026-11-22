@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 import { digest } from './revision.js';
-import { coverageTargets, keepCovered } from './coverage.js';
+import { buildCoverageShortlist, coverageTargets, keepCovered, type RecordedCoverage } from './coverage.js';
 import { experimentProfiles, productionChanges, rankExperimentIds } from './retrieval.js';
 import { benchmarkInput, fitRanker, scoreOrder, type Grade } from './experiment-ranker.js';
 
@@ -45,7 +45,7 @@ export function validateCases(cases: Case[]) {
   if (new Set(repos.values()).size !== 2) throw new Error('Expected separate train and test repositories');
 }
 
-type Dataset = 'pilot' | 'expanded' | 'coverage';
+type Dataset = 'pilot' | 'expanded' | 'coverage' | 'shortlist';
 
 export function expandCases(pilot: Case[], additions: Case[]) {
   validateCases(pilot);
@@ -75,9 +75,13 @@ async function benchmark(dataset: Dataset, model?: string) {
   if (dataset !== 'pilot') {
     cases = expandCases(pilot, await readCases('evaluation/ranking/cases-expanded.json'));
   }
-  if (dataset === 'coverage') {
+  if (dataset === 'coverage' || dataset === 'shortlist') {
     const earlier = [...cases, ...pilot.filter(item => item.split === 'test')];
     cases = expandCases(earlier, await readCases('evaluation/ranking/cases-coverage.json'));
+    if (dataset === 'shortlist') {
+      const prior = [...earlier.filter(item => item.split === 'test'), ...cases];
+      cases = expandCases(prior, await readCases('evaluation/ranking/cases-shortlist.json'));
+    }
   }
   validateCases(cases);
 
@@ -94,27 +98,44 @@ async function benchmark(dataset: Dataset, model?: string) {
     features: candidate.features, relevant: item.labels[candidate.fixture] !== undefined,
   }))))).flat();
   const ranker = fitRanker(examples);
+  const bank: { schemaVersion: number; records: RecordedCoverage[] } | undefined = dataset === 'shortlist'
+    ? JSON.parse(await readFile('evaluation/ranking/saved-coverage.json', 'utf8')) : undefined;
+  if (bank && bank.schemaVersion !== 1) throw new Error('Unsupported saved coverage schema');
   let modelDigest: string | undefined;
   const rows: (Pick<Case, 'repo' | 'pr' | 'labels'> & { orders: Record<string, string[]> })[] = [];
   for (const item of test) {
     const { excerpt, candidates, targets } = await inputs(item);
-    const ordered = (score: (candidate: typeof candidates[number]) => number, threshold: number) => candidates
+    const shortlist = bank ? buildCoverageShortlist(bank.records, targets) : undefined;
+    const eligible = candidates.filter(candidate => shortlist?.has(candidate.fixture));
+    const ordered = (pool: typeof candidates, score: (candidate: typeof candidates[number]) => number,
+        threshold = -Infinity) => pool
       .map(candidate => ({ fixture: candidate.fixture, score: score(candidate) }))
       .filter(candidate => candidate.score >= threshold)
       .sort((left, right) => right.score - left.score || left.fixture.localeCompare(right.fixture))
       .map(candidate => candidate.fixture);
     const orders: Record<string, string[]> = {
-      keyword: ordered(candidate => candidate.keywordScore, 2),
-      learned: ordered(candidate => ranker.score(candidate.features), 0.5),
+      keyword: ordered(candidates, candidate => candidate.keywordScore, 2),
+      learned: ordered(candidates, candidate => ranker.score(candidate.features), 0.5),
     };
+    if (shortlist) {
+      orders.keywordShortlist = ordered(eligible, candidate => candidate.keywordScore);
+      orders.learnedShortlist = ordered(eligible, candidate => ranker.score(candidate.features));
+    }
     if (model) {
-      const options = candidates.map(({ fixture, scope }) => ({ fixture, scope }));
       const start = performance.now();
-      try {
-        const ranked = await rankExperimentIds(excerpt, model, options);
+      async function ollama(options: Parameters<typeof rankExperimentIds>[2]) {
+        if (!options.length) return [];
+        const ranked = await rankExperimentIds(excerpt, model!, options);
         if (modelDigest && modelDigest !== ranked.modelDigest) throw new Error('Ollama model changed during trial');
         modelDigest = ranked.modelDigest;
-        orders.ollama = ranked.order;
+        return ranked.order;
+      }
+      try {
+        orders.ollama = await ollama(candidates.map(({ fixture, scope }) => ({ fixture, scope })));
+        if (shortlist) {
+          const options = eligible.map(({ fixture, scope }) => ({ fixture, scope, coverage: shortlist.get(fixture)!.coverage }));
+          orders.ollamaShortlist = await ollama(options);
+        }
       } catch (error) {
         throw new Error('Ollama failed on ' + item.repo + '#' + item.pr, { cause: error });
       }
@@ -145,8 +166,8 @@ async function benchmark(dataset: Dataset, model?: string) {
 if (import.meta.main) {
   try {
     const { values } = parseArgs({ options: { dataset: { type: 'string', default: 'pilot' }, ollama: { type: 'string' } } });
-    if (values.dataset !== 'pilot' && values.dataset !== 'expanded' && values.dataset !== 'coverage') {
-      throw new Error('Dataset must be pilot, expanded or coverage');
+    if (values.dataset !== 'pilot' && values.dataset !== 'expanded' && values.dataset !== 'coverage' && values.dataset !== 'shortlist') {
+      throw new Error('Dataset must be pilot, expanded, coverage or shortlist');
     }
     console.log(JSON.stringify(await benchmark(values.dataset, values.ollama), null, 2));
   } catch (error) {
