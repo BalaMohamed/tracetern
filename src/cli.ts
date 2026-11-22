@@ -1,3 +1,4 @@
+import { open } from 'node:fs/promises';
 import { compare, implementations } from './scenario.js';
 import { investigate, runWorker } from './investigation.js';
 import { getRun } from './evidence-view.js';
@@ -6,6 +7,20 @@ import { isLibraryFixture, zustandFixture } from './library-cases.js';
 
 import { investigateDataFusion } from './datafusion.js';
 import { datafusionFixture } from './evidence.js';
+import { suggestExperiments } from './retrieval.js';
+
+async function readDiff(path: string) {
+  const file = await open(path);
+  try {
+    const maxBytes = 1024 * 1024;
+    const buffer = Buffer.alloc(maxBytes + 1);
+    const { bytesRead } = await file.read({ buffer });
+    if (bytesRead > maxBytes) throw new Error('Diff exceeds 1 MiB');
+    return buffer.toString('utf8', 0, bytesRead);
+  } finally {
+    await file.close();
+  }
+}
 
 async function dispatch(args: string[]) {
   const [command, first, second] = args;
@@ -47,7 +62,7 @@ async function dispatch(args: string[]) {
   }
   const name = implementations.find(value => value === args[0]);
   if (!name || args.length !== 1) {
-    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
+    throw new Error('Usage: tracetern <cache|batch|n-plus-one> | datafusion <broken|fixed|disabled> | suggest <diff-file> | record <implementation> | compare <base> <candidate> | compare-library <repository> <base> <candidate> [--adapter zustand] | plan-library <repository> <base> <candidate> | replay <run-id> | verify <run-id> <candidate> [--json]');
   }
   return compare(await runWorker('batch'), await runWorker(name));
 }
@@ -57,6 +72,28 @@ const flag = args.indexOf('--json');
 const json = flag >= 0;
 if (json) args.splice(flag, 1);
 try {
+  if (args[0] === 'suggest' && args[1] && args.length === 2) {
+    const report = suggestExperiments(await readDiff(args[1]));
+    if (json) console.log(JSON.stringify(report, null, 2));
+    else if (report.reason) console.log(report.reason);
+    else for (const item of report.suggestions) {
+      console.log(item.fixture + ' · ' + item.distinctCases + ' distinct saved cases');
+      console.log(item.scope);
+      for (const match of item.matching) console.log(match.path + ' · ' + match.concepts.join(', '));
+      console.log('Replay saved case: tracetern replay ' + item.example.runId);
+    }
+    process.exitCode = report.suggestions.length ? 0 : 2;
+  } else {
+    process.exitCode = await runComparison(args, json);
+  }
+} catch (error) {
+  const reason = error instanceof Error ? error.message : String(error);
+  if (json) console.log(JSON.stringify({ schemaVersion: 1, verdict: 'inconclusive', reason }));
+  else console.error('Inconclusive: ' + reason);
+  process.exitCode = 2;
+}
+
+async function runComparison(args: string[], json: boolean) {
   const report = await dispatch(args);
   if (json) {
     console.log(JSON.stringify(report, null, 2));
@@ -97,10 +134,5 @@ try {
       if (report.mismatch) console.log(JSON.stringify(report.mismatch));
     }
   }
-  process.exitCode = 'mode' in report && report.reproduced === false ? 2 : { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
-} catch (error) {
-  const reason = error instanceof Error ? error.message : String(error);
-  if (json) console.log(JSON.stringify({ schemaVersion: 1, verdict: 'inconclusive', reason }));
-  else console.error('Inconclusive: ' + reason);
-  process.exitCode = 2;
+  return 'mode' in report && report.reproduced === false ? 2 : { pass: 0, regression: 1, inconclusive: 2 }[report.verdict];
 }

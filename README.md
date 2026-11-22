@@ -113,6 +113,15 @@ SQLite saves the Parquet bytes and digest, candidate mode, engine identities inc
 Replay uses the saved bytes and requires the compatible local runtimes and harness. Missing evidence or an incompatible environment exits 2.
 The browser and MCP can read these checks, and the execution-enabled MCP server can replay them.
 
+## Retrieve experiments for a proposed change
+
+Save a unified Git diff, then run `npm run tracetern -- suggest change.patch --json`.
+TraceTern searches the completed original runs in the current evidence store.
+It ranks supported experiments by terms in the changed production code and the paths they appear in.
+Each result includes the matching paths and terms, the known scope of the saved experiment, and a run ID to replay.
+Replays, follow-up verifications, and identical repeats of the same fixture, revisions, mode and plan add no extra examples.
+An unmatched diff exits 2. Recommendations describe prior evidence, and replay runs the saved case against its original inputs.
+
 ## Choose an experiment
 
 For changes to how query observers combine results, the planner can select an experiment that resolves a pending query while the requested query list grows. The report lists counts before and after resolution for a one-query control, followed by counts for the growing list. A passing control and a baseline-only failure can establish a repair. Set `TRACETERN_OBSERVER_REPO` to a local repository containing both revisions from PR #12633 to run the upstream observer test.

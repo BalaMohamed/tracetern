@@ -73,6 +73,24 @@ export function listRuns(directory: string): RunSummary[] {
   `).all().map(summary));
 }
 
+// Return one original result per revision pair, mode and experiment plan.
+// Replays and follow-up verifications retain their evidence but add no examples.
+export function retrievalRuns(directory: string): RunSummary[] {
+  return read(directory, [], db => db.prepare(`
+    SELECT ${summaryColumns} FROM runs_v1
+    WHERE rowid IN (
+      SELECT MAX(rowid) FROM runs_v1
+      WHERE json_extract(payload, '$.replayOf') IS NULL
+        AND json_extract(payload, '$.verificationOf') IS NULL
+        AND json_extract(payload, '$.result.verdict') IN ('pass', 'regression')
+      GROUP BY json_extract(payload, '$.environment.fixture'),
+        json_extract(payload, '$.reference.commit'), json_extract(payload, '$.candidate.commit'),
+        json_extract(payload, '$.fixtureImplementation'), json_extract(payload, '$.plan')
+    )
+    ORDER BY rowid DESC
+  `).all().map(summary));
+}
+
 export function getRun(directory: string, runId: string): RunEvidence | undefined {
   if (!runIdPattern.test(runId)) return undefined;
   return read(directory, undefined, db => {

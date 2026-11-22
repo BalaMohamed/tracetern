@@ -51,3 +51,9 @@ I moved those capture settings behind the adapter selection and routed the saved
 This is a known upstream development case. I compared released engines 54.0.0 and 55.2.0 using the three-row source from [issue #24109](https://github.com/apache/datafusion/issues/24109). Version 55.2.0 contains the [branch-55 backport](https://github.com/apache/datafusion/commit/045b590c4822fdbd2ce47eac2f7a5a55b28cde45) of [repair #24125](https://github.com/apache/datafusion/pull/24125). These releases also differ in other changes.
 
 All three candidates returned ID 2 on the scalar, inferred-schema and unoptimized controls. With a declared struct schema requiring adaptation, 54.0.0 returned IDs 1, 2 and 3. Turning off pushdown on the same engine returned ID 2, but the executed scan pruned zero rows. Engine 55.2.0 returned ID 2 and pruned two rows in the scan. The probe reads the executed scan counter independently of the configuration flag. This measures engine work on this input, not elapsed time. All three runs replayed from their saved Parquet bytes with the same checks and verdicts.
+
+## Retrieving a saved experiment for DataFusion PR #27259
+
+I gave the lexical retriever only the public unified diff for [PR #27259](https://github.com/apache/datafusion/pull/27259) (base `9f208b63d18d6a782513d8cd32453dc56c67a3fd`, head `7222eb99446e5562de74f5c892f2661da36e5773`). The changed production file `projection_read_plan.rs` matched the terms `struct` and `schema`. The retriever returned the saved Parquet pushdown experiment and counted three distinct original modes, regardless of the replays in the store.
+
+The old experiment is a relevant control for struct-field filtering and scan work. The PR's SQL test exercises a Map key lookup nested inside a struct, which the three-row fixture does not cover. This result establishes related-case retrieval. It gives no coverage or correctness verdict about the PR, and no candidate revision was executed.
