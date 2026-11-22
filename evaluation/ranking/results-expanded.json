@@ -1,0 +1,309 @@
+{
+  "schemaVersion": 1,
+  "dataset": "expanded",
+  "trainingCases": 16,
+  "trainingPairs": 64,
+  "testCases": 17,
+  "weights": [
+    -1.3423412069094829,
+    3.876253182513229,
+    1.2674227967411775,
+    2.0586292566226563,
+    0.7266523659793007
+  ],
+  "model": "ttempvnn/Huihui-gemma-4-12B-it-qat-q4_0-unquantized-abliterated-Q4-K-M:latest",
+  "modelDigest": "31f91ca54365ce66faac667e15f270b8826ff5b1827869c77dacc8cd8b9a0839",
+  "metrics": {
+    "keyword": {
+      "usefulAt1": 3,
+      "irrelevantAt1": 5,
+      "abstentions": 9,
+      "correctAbstentions": 7,
+      "meanNdcgOnUsefulCases": 0.6051549589285763
+    },
+    "learned": {
+      "usefulAt1": 3,
+      "irrelevantAt1": 5,
+      "abstentions": 9,
+      "correctAbstentions": 7,
+      "meanNdcgOnUsefulCases": 0.6051549589285763
+    },
+    "ollama": {
+      "usefulAt1": 4,
+      "irrelevantAt1": 10,
+      "abstentions": 3,
+      "correctAbstentions": 1,
+      "meanNdcgOnUsefulCases": 0.6666666666666666
+    }
+  },
+  "cases": [
+    {
+      "repo": "apache/datafusion-comet",
+      "pr": 4722,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": []
+      }
+    },
+    {
+      "repo": "apache/datafusion-comet",
+      "pr": 6067,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ]
+      }
+    },
+    {
+      "repo": "apache/datafusion-comet",
+      "pr": 5699,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1",
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ]
+      }
+    },
+    {
+      "repo": "apache/datafusion-comet",
+      "pr": 7598,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1",
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1"
+        ]
+      }
+    },
+    {
+      "repo": "apache/datafusion-comet",
+      "pr": 1619,
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "learned": [
+          "datafusion-parquet-pushdown/v1"
+        ],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ]
+      }
+    },
+    {
+      "repo": "reduxjs/redux",
+      "pr": 462,
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "zustand-vanilla/v1",
+          "tanstack-query-keys/v1",
+          "datafusion-parquet-pushdown/v1",
+          "orders-list/v1"
+        ]
+      }
+    },
+    {
+      "repo": "reduxjs/redux",
+      "pr": 1569,
+      "labels": {},
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1"
+        ],
+        "ollama": [
+          "zustand-vanilla/v1"
+        ]
+      }
+    },
+    {
+      "repo": "reduxjs/redux",
+      "pr": 1325,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "zustand-vanilla/v1"
+        ]
+      }
+    },
+    {
+      "repo": "reduxjs/redux",
+      "pr": 4078,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ]
+      }
+    },
+    {
+      "repo": "reduxjs/redux",
+      "pr": 3485,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": []
+      }
+    },
+    {
+      "repo": "reduxjs/redux",
+      "pr": 4476,
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1"
+        ],
+        "ollama": [
+          "zustand-vanilla/v1"
+        ]
+      }
+    },
+    {
+      "repo": "vercel/swr",
+      "pr": 4252,
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": []
+      }
+    },
+    {
+      "repo": "vercel/swr",
+      "pr": 2711,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1",
+          "datafusion-parquet-pushdown/v1"
+        ]
+      }
+    },
+    {
+      "repo": "vercel/swr",
+      "pr": 2386,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "datafusion-parquet-pushdown/v1",
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "orders-list/v1"
+        ]
+      }
+    },
+    {
+      "repo": "vercel/swr",
+      "pr": 2554,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "zustand-vanilla/v1",
+          "tanstack-query-keys/v1",
+          "datafusion-parquet-pushdown/v1",
+          "orders-list/v1"
+        ]
+      }
+    },
+    {
+      "repo": "vercel/swr",
+      "pr": 1986,
+      "labels": {},
+      "orders": {
+        "keyword": [],
+        "learned": [],
+        "ollama": [
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1",
+          "datafusion-parquet-pushdown/v1",
+          "orders-list/v1"
+        ]
+      }
+    },
+    {
+      "repo": "vercel/swr",
+      "pr": 1429,
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "orders": {
+        "keyword": [
+          "zustand-vanilla/v1",
+          "tanstack-query-keys/v1"
+        ],
+        "learned": [
+          "zustand-vanilla/v1",
+          "tanstack-query-keys/v1"
+        ],
+        "ollama": [
+          "tanstack-query-keys/v1",
+          "zustand-vanilla/v1"
+        ]
+      }
+    }
+  ]
+}

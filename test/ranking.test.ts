@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { benchmarkInput, fitRanker, scoreOrder, type Example } from '../src/experiment-ranker.js';
-import { validateCases } from '../src/ranking-benchmark.js';
+import { expandCases, validateCases } from '../src/ranking-benchmark.js';
 
 const example = {
   split: 'train' as const, repo: 'owner/first', pr: 1,
@@ -19,6 +19,13 @@ test('dataset validation rejects repository overlap and duplicate PR evidence', 
   assert.throws(() => validateCases([example, { ...holdout, labels: { unknown: 'direct' } }]), /Invalid label/);
 });
 
+test('expansion retains pilot training and rejects prior holdout repositories and patches', () => {
+  const newHoldout = { ...holdout, repo: 'owner/third', head: 'f'.repeat(40), diffSha256: 'a'.repeat(64) };
+  assert.deepEqual(expandCases([example, holdout], [newHoldout]), [example, newHoldout]);
+  assert.throws(() => expandCases([example, holdout], [holdout]), /reuses a pilot/);
+  assert.throws(() => expandCases([example, holdout], [{ ...newHoldout, diffSha256: holdout.diffSha256 }]), /reuses a pilot/);
+});
+
 test('the learned ranker fits labeled pairs deterministically and can abstain', () => {
   const training: Example[] = [
     { features: [1, 0, 0, 0], relevant: true },
@@ -34,7 +41,9 @@ test('production excerpts exclude test files and the metric credits only relevan
   const entry = (file: string, added: string) =>
     `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1 +1 @@\n-before()\n+${added}\n`;
   const input = benchmarkInput(entry('engine/src/main.rs', 'structPredicate()')
-    + entry('engine/tests/filter.rs', 'labelTargetPruning()'));
+    + entry('engine/tests/filter.rs', 'labelTargetPruning()')
+    + entry('engine/src/filters/tests.rs', 'labelTargetRustModule()')
+    + entry('engine/src/filters/test_utils.rs', 'labelTargetRustHelper()'));
   assert.match(input.excerpt, /structPredicate/);
   assert.doesNotMatch(input.excerpt, /labelTarget/);
   assert.equal(scoreOrder([], {}).top, 'abstained');

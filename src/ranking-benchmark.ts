@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { parseArgs } from 'node:util';
 import { digest } from './revision.js';
 import { experimentProfiles, rankExperimentIds } from './retrieval.js';
 import { benchmarkInput, fitRanker, scoreOrder, type Grade } from './experiment-ranker.js';
@@ -43,10 +44,35 @@ export function validateCases(cases: Case[]) {
   if (new Set(repos.values()).size !== 2) throw new Error('Expected separate train and test repositories');
 }
 
-async function benchmark(model?: string) {
+type Dataset = 'pilot' | 'expanded';
+
+export function expandCases(pilot: Case[], additions: Case[]) {
+  validateCases(pilot);
+  const priorRepos = new Set(pilot.map(item => item.repo.toLowerCase()));
+  const priorHeads = new Set(pilot.map(item => item.head));
+  const priorDiffs = new Set(pilot.map(item => item.diffSha256));
+  const cases = [...pilot.filter(item => item.split === 'train'), ...additions];
+  for (const item of additions) {
+    if (priorRepos.has(item.repo.toLowerCase()) || priorHeads.has(item.head) || priorDiffs.has(item.diffSha256)) {
+      throw new Error('Expanded dataset reuses a pilot repository or PR: ' + item.repo + '#' + item.pr);
+    }
+  }
+  validateCases(cases);
+  return cases;
+}
+
+async function readCases(path: string) {
   const { schemaVersion, cases }: { schemaVersion: number; cases: Case[] } =
-    JSON.parse(await readFile('evaluation/ranking/cases.json', 'utf8'));
-  if (schemaVersion !== 1) throw new Error('Unsupported dataset version');
+    JSON.parse(await readFile(path, 'utf8'));
+  if (schemaVersion !== 1) throw new Error('Unsupported dataset schema: ' + path);
+  return cases;
+}
+
+async function benchmark(dataset: Dataset, model?: string) {
+  const pilot = await readCases('evaluation/ranking/cases.json');
+  const cases = dataset === 'expanded'
+    ? expandCases(pilot, await readCases('evaluation/ranking/cases-expanded.json'))
+    : pilot;
   validateCases(cases);
 
   async function inputs(item: Case) {
@@ -100,17 +126,17 @@ async function benchmark(model?: string) {
       meanNdcgOnUsefulCases: relevant.length ? relevant.reduce((sum, score) => sum + score.ndcg!, 0) / relevant.length : null,
     }];
   }));
-  return { schemaVersion, trainingCases: train.length, trainingPairs: examples.length,
+  return { schemaVersion: 1, dataset, trainingCases: train.length, trainingPairs: examples.length,
     testCases: test.length, weights: ranker.weights, model, modelDigest, metrics, cases: rows };
 }
 
 if (import.meta.main) {
   try {
-    const args = process.argv.slice(2);
-    if (args.length && !(args.length === 2 && args[0] === '--ollama' && args[1])) {
-      throw new Error('Usage: npm run evaluate:ranking -- [--ollama <tag>]');
+    const { values } = parseArgs({ options: { dataset: { type: 'string', default: 'pilot' }, ollama: { type: 'string' } } });
+    if (values.dataset !== 'pilot' && values.dataset !== 'expanded') {
+      throw new Error('Dataset must be pilot or expanded');
     }
-    console.log(JSON.stringify(await benchmark(args[1]), null, 2));
+    console.log(JSON.stringify(await benchmark(values.dataset, values.ollama), null, 2));
   } catch (error) {
     console.error(error);
     process.exitCode = 2;

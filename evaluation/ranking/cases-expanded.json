@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "split": "train",
+      "repo": "pola-rs/polars",
+      "pr": 29397,
+      "base": "b026723a5370484cd4fecaa8bcae4dd2b3f94357",
+      "head": "d4ce612a1b877e55836d0ccee4aaea745a294f07",
+      "diffSha256": "6209cfd0c025f483ef78d6714c34b40a6320a233e2de143fce8d0eaa736895ae",
+      "labels": {},
+      "rationale": "The change orders multiple predicate columns using selectivity from the first batch. The saved experiment has one predicate and does not observe column decode order."
+    },
+    {
+      "split": "train",
+      "repo": "pola-rs/polars",
+      "pr": 28711,
+      "base": "030f8032662857b9225776f9af6cd7ba6551de50",
+      "head": "77ccc73709d0fb850e9fa70e76e3b14d93a0ba69",
+      "diffSha256": "c85f57edff56864efb81de19d24de2ebad3fc77c0c28bdb7d405f8cd9d3fe232",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "Pushdown-on and pushdown-off row parity under schema conversion is a relevant control. The fixture does not exercise timestamp-unit conversion."
+    },
+    {
+      "split": "train",
+      "repo": "pola-rs/polars",
+      "pr": 25476,
+      "base": "898c89a2813dee1505cb3e1709cd2e0408d92075",
+      "head": "f3c0d5f10b83d9248609d4b68e87359dcde325b3",
+      "diffSha256": "e5e8b8ab4187b149d281337b47911f3dc0e3d228f26616447037871aa3590aab",
+      "labels": {},
+      "rationale": "The fix handles a streaming range predicate and specialized IsBetween decoding. The stored workload uses a single equality predicate."
+    },
+    {
+      "split": "train",
+      "repo": "pola-rs/polars",
+      "pr": 24401,
+      "base": "5384ccd108f013f50aec706b897781ee6ffb96f7",
+      "head": "f949d73789cd2664969d875bcd4ab448865dd7df",
+      "diffSha256": "bee5f81082cc032eff2cfd22af512f3508efc1ec9bb7fc35d93ea0442dcc3c2d",
+      "labels": {},
+      "rationale": "The change limits decoder allocation to selected values. Counting rows pruned would not distinguish the decoder allocations or the empty-chunk regression."
+    },
+    {
+      "split": "train",
+      "repo": "vueuse/vueuse",
+      "pr": 4957,
+      "base": "f29b141b3578a0434ad6af11b05610827449d8ed",
+      "head": "92086ac13803a139f2a9d4f36c9ed21a35d882e1",
+      "diffSha256": "6abd48f44d624e5aa5e2b1f0304a11303fffca34ca05bdf2824a85c15ac51e4a",
+      "labels": {},
+      "rationale": "An undefined storage event requires rereading persistent storage. Vanilla store replacement does not exercise browser storage events or rereads."
+    },
+    {
+      "split": "train",
+      "repo": "vueuse/vueuse",
+      "pr": 4730,
+      "base": "d3ed667f4f75307b86b03be559bcccd4896cea8f",
+      "head": "107a7e995212ec88839f2cfda12f0458d615c5c2",
+      "diffSha256": "a4a59c02ebd5c672c484c90dda972b9dc97e20e73e9d93c6e7bd59171b3dd787",
+      "labels": {},
+      "rationale": "The fix concerns watcher teardown when a Vue effect scope ends and listener behavior before mount. Plain unsubscribe does not exercise Vue lifecycle rules."
+    },
+    {
+      "split": "train",
+      "repo": "vueuse/vueuse",
+      "pr": 3737,
+      "base": "ad3ca8676aa84ab8f8b1d7a33d29ea72f39089c5",
+      "head": "2768b7e5d3e028fa81184d20bcf0caa6c249f400",
+      "diffSha256": "529b4f4026f57c99b851f7582803b0e278f82fbb4f665e9b3708fd2dd41b7b38",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "A null update and notification are relevant behaviors. The saved fixture cannot verify DOM storage events or restoration of defaults in a second instance."
+    },
+    {
+      "split": "train",
+      "repo": "vueuse/vueuse",
+      "pr": 4464,
+      "base": "e5301f45ad2745c36d2cf6ee9cac3ad8c15f2ddf",
+      "head": "d9b5a42302a70bd05887d7b637c60a18c1be58f9",
+      "diffSha256": "d8ebfcb82966c884ce2fea0872788741b41fdd95e09b4a50e74e4abe10d1f456",
+      "labels": {},
+      "rationale": "Switching a reactive storage key reroutes persisted reads and writes. Neither query key hashing nor vanilla store replacement exercises reactive key changes in browser storage."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion-comet",
+      "pr": 4722,
+      "base": "f6aa10c2eadc396e7ca228c7a6c296332e321801",
+      "head": "687aa54e1a65788d965f24947f07b61d3b02c9a1",
+      "diffSha256": "b259b67ed4c48eab960f3393ef8e0854675630ca12405dae0b2cb096098ae3a2",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "Comparing correct rows with actual scan work under both pushdown settings is a useful control. It cannot verify Spark-to-Comet configuration forwarding."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion-comet",
+      "pr": 6067,
+      "base": "6065705c16340c0be293212a71decfd9df4daae4",
+      "head": "d04897e48357e511d4d85c6f38e03dec5b5cf51c",
+      "diffSha256": "0542c71ca44504d4cb0647f102c03de8be7b553683833c36339687980d5a74ae",
+      "labels": {},
+      "rationale": "The fix preserves type-conversion errors when runtime join filtering would skip rows. The saved predicate check exercises valid casts without a join or expected errors."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion-comet",
+      "pr": 5699,
+      "base": "7e1984399eb887cd13109698ee55cf2ce150f849",
+      "head": "0d206f31d9069fa4d740b7da0c2dd164b7ee7e73",
+      "diffSha256": "ee9b030cd14d42cc9c422e8eae2764922f8ef8e1e4773fe3b65df243a11de87b",
+      "labels": {},
+      "rationale": "This adds runtime hash-join domain filtering and row-group skipping. Static struct predicate row pruning does not exercise a build-side domain or join execution."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion-comet",
+      "pr": 7598,
+      "base": "f49be21579ddd5615674d6ec9e23a5f79da6a431",
+      "head": "4f2951f1277b75e5515ce07d35c8b0be1b4a3e1f",
+      "diffSha256": "e519b63c96032e747082b3c71d2e76f0f03210279e19fd16e02d36551a1e8e2c",
+      "labels": {},
+      "rationale": "Partial MIN/MAX updates a live bound across row groups. The fixture has neither an aggregate bound nor multiple row groups to skip."
+    },
+    {
+      "split": "test",
+      "repo": "apache/datafusion-comet",
+      "pr": 1619,
+      "base": "23dfb0302d2cb0076f18020b88b05ca35842879e",
+      "head": "e528bb9b997eb89d794ed95c38f4d502da01ddb7",
+      "diffSha256": "69866c0fda611af37e9b869e90af4694d3fb21733d05daae5e523d9490d961d5",
+      "labels": {
+        "datafusion-parquet-pushdown/v1": "control"
+      },
+      "rationale": "The enabled/disabled scan comparison is a relevant check for the intended behavior. The existing fixture alone cannot verify that Spark configuration reaches the engine."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/redux",
+      "pr": 462,
+      "base": "f0132a0c4a8be31a902c56bed5240c6b606c145d",
+      "head": "2ddfd715c8313967db82ef2c957b69b7ff143bb8",
+      "diffSha256": "81cace599636136dacdcc3606c50d2985daca0bacdb0ca8c13c9aff90f891fd2",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "Ordinary notification and unsubscribe are related controls. The fixture does not unsubscribe during dispatch or assert that the next listener still fires."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/redux",
+      "pr": 1569,
+      "base": "52cfbff4ccf4553694365b7ac8eb0542d4ddf547",
+      "head": "5065cab676f58846a8597cb3a38781b700c6fac0",
+      "diffSha256": "a4c81320517de7a82b02201a2fa740afbd0f6885f5c1cecc14ce1d89e1c95f82",
+      "labels": {},
+      "rationale": "The change rejects store operations inside an executing reducer. The vanilla test calls methods outside dispatch and has no reducer reentrancy."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/redux",
+      "pr": 1325,
+      "base": "32b82b27f508449b78cf2a11e3099bf4343d0b83",
+      "head": "69f8d977625b35d22d72ec6df54c3aab7f59a62a",
+      "diffSha256": "1be259fc711efb7310f4e74f13179d874b578da078bfac5bf464711fd609c0aa",
+      "labels": {},
+      "rationale": "The modified contract rejects a non-function listener. The saved experiment subscribes a valid callback and does not cover argument validation."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/redux",
+      "pr": 4078,
+      "base": "97a7798e8379aec0d682ae99b49ef65062a56ecf",
+      "head": "9ab0a700121d8f4ea0316ef555e452b2a0d207d1",
+      "diffSha256": "a2a99bf8e2f2cbcbbb16af9788c0cd798634771eaf3c85f327c2f367f71b554d",
+      "labels": {},
+      "rationale": "This fixes the PreloadedState type calculation for unknown fields. The runtime experiment does not compile a consumer of the public types."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/redux",
+      "pr": 3485,
+      "base": "63dda816402d11766e76f92eb180cfeaba84b4c0",
+      "head": "fba87fea2923904837eefe4f134852a9b9bc951e",
+      "diffSha256": "9301717090077759000b7657bcbda052896bdd250457590576dcf190af41661d",
+      "labels": {},
+      "rationale": "The fix restricts which preloaded state properties TypeScript treats as partial. Checking a runtime shallow merge would not verify this type-level distinction."
+    },
+    {
+      "split": "test",
+      "repo": "reduxjs/redux",
+      "pr": 4476,
+      "base": "3dd80828b8d128967b20b3d3d212e62f6af522a2",
+      "head": "1599aadb204a09e7b43dbb04b66582f056b3c83d",
+      "diffSha256": "62d623cfc4dcb72fb3e4dc569039a8ec21b1262bf1ca1cff31f88688b87a5bd7",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "The new listener Map must preserve ordinary notifications and unsubscribe. The saved control does not register the same callback twice or measure removal cost."
+    },
+    {
+      "split": "test",
+      "repo": "vercel/swr",
+      "pr": 4252,
+      "base": "46f3954a35c39771ba3dcc00af774e4002062418",
+      "head": "6c37b79fb48a266034f560e659f467749d9b07b8",
+      "diffSha256": "939a8263782e0259546270e48801ecba51bd65cde0774c6f2db30b2da1b0d197",
+      "labels": {
+        "zustand-vanilla/v1": "control"
+      },
+      "rationale": "Basic unsubscribe is a useful control. The regression requires disposing twice with a second active listener, which the saved single-listener case cannot reproduce."
+    },
+    {
+      "split": "test",
+      "repo": "vercel/swr",
+      "pr": 2711,
+      "base": "2efed2873a8f9b319980cdd0a884909ba5bd6b1e",
+      "head": "ff5267c4f1e11c8b30d29823f2e75d04a792b5f1",
+      "diffSha256": "5a5ea0201e2cacfc9b9a2db53f1ec79b04eac048900390d388343f526594962f",
+      "labels": {},
+      "rationale": "A function key must pass its evaluated arguments to the subscription callback. The saved key tests check cache identity and have no function-key subscription callback."
+    },
+    {
+      "split": "test",
+      "repo": "vercel/swr",
+      "pr": 2386,
+      "base": "33954d7b661c70ed25246b413ccb8c98efd4ad8c",
+      "head": "e3ea9ca4e040ccf6e215cc47d2f5616d9ca306a5",
+      "diffSha256": "a2ce4e2d9f8e6749c5ba4dad8fed9ac2f95a5053ff629bb5e9a5f79e150b1980",
+      "labels": {},
+      "rationale": "An infinite-list key change must restore its cached page size. The key-equivalence fixture has no pagination or page-size restoration."
+    },
+    {
+      "split": "test",
+      "repo": "vercel/swr",
+      "pr": 2554,
+      "base": "c09d200024133f814e974e9ad221ce2a26bcc0c9",
+      "head": "b58d4a06657c68d7527e9b5623d3b0d94182af8b",
+      "diffSha256": "1f75377c887f601e7756d850980714a1a2a9aa08870f65141ee7828da14284fd",
+      "labels": {},
+      "rationale": "The change adjusts the TypeScript cache-provider interface. The saved cache fixture exercises runtime behavior."
+    },
+    {
+      "split": "test",
+      "repo": "vercel/swr",
+      "pr": 1986,
+      "base": "bb7cc1f8d9262d5380ca878ca3d7fa31c6c52eed",
+      "head": "1e32f6b403504e20e57a042fd7fd0ccde64d5415",
+      "diffSha256": "f85cd63d6552bb477f468df5ae0edde4b2996a4d4c2bcefb1d2d7d5251d3de4b",
+      "labels": {},
+      "rationale": "The change gates loading-state writes on whether a new request starts. The saved query fixture does not assert SWR loading state across deduplicated requests."
+    },
+    {
+      "split": "test",
+      "repo": "vercel/swr",
+      "pr": 1429,
+      "base": "e3d42488d7457019f5f9ca3b6e03357c8dd33130",
+      "head": "b6060f40bd18863c0b38f97c94f1fd62e3faf3a0",
+      "diffSha256": "ade47ac97645ba8bf758f3a98cdd6c4ca5164f8b67aca82302d8286bcd9a4a3a",
+      "labels": {
+        "tanstack-query-keys/v1": "direct"
+      },
+      "rationale": "Stable hashing sorts object keys and treats array order separately. The saved reordered-object and distinct-array checks directly exercise those semantics."
+    }
+  ]
+}

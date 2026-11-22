@@ -140,7 +140,7 @@ Installed model weights remain unchanged. Training a ranker would require indepe
 
 ## Evaluate experiment ranking
 
-The [PR ranking pilot](evaluation/ranking/README.md) provides a versioned dataset of public changes with relevance labels.
+The [PR ranking benchmark](evaluation/ranking/README.md) provides two datasets of public changes with relevance labels.
 Its benchmark compares keyword retrieval, a trained logistic ranker and optional local Ollama inference on held-out repositories.
 
 ## Choose an experiment

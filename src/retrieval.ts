@@ -30,7 +30,9 @@ export function productionChanges(diff: string) {
       inHunk = true;
     } else if (!inHunk && line.startsWith('+++ ')) {
       const path = line.slice(4).replace(/^b\//, '').split('\t')[0]!;
-      if (path === '/dev/null' || /(?:^|\/)(?:test|tests|test_files|__tests__|docs)(?:\/|$)|\.(?:test|spec)\./.test(path)) continue;
+      if (path === '/dev/null' ||
+          /(?:^|\/)(?:test|tests|test_files|__tests__|docs)(?:\/|$)|\.(?:test|spec)\./.test(path) ||
+          /(?:^|\/)(?:tests?|test_[^/]+|[^/]+_tests?)\.[^/]+$/.test(path)) continue;
       lines = [];
       files.set(path, lines);
     } else if (inHunk && lines && /^[+-]/.test(line)) {
