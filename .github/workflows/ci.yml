@@ -1,0 +1,53 @@
+name: TraceTern checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-fixtures:
+    name: Deterministic fixtures (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.12.0'
+          package-manager-cache: false
+      - name: Install PostgreSQL server tools
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install postgresql@17
+            bindir="$(brew --prefix postgresql@17)/bin"
+          else
+            sudo apt-get update
+            sudo apt-get install -y postgresql
+            bindir="$(pg_config --bindir)"
+          fi
+          test -x "$bindir/initdb"
+          test -x "$bindir/pg_ctl"
+          echo "$bindir" >> "$GITHUB_PATH"
+      - name: Install locked packages
+        run: |
+          npm ci --ignore-scripts
+          npm ci --prefix adapters/tanstack --ignore-scripts
+          npm ci --prefix integrations/mcp --ignore-scripts
+      - name: Test Orders, ranking, and the viewer
+        run: npm test
+      - name: Test library replay
+        run: node --test dist/test/library/*.test.js
+      - name: Test MCP
+        run: npm test --prefix integrations/mcp

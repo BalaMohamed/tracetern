@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -211,10 +212,10 @@ await new Promise(() => setInterval(() => {}, 1000));
     let stdout = '';
     child.stdout.setEncoding('utf8').on('data', chunk => { stdout += chunk; });
     const deadline = Date.now() + 5000;
-    while (!await stat(ready, { throwIfNoEntry: false }) && Date.now() < deadline && child.exitCode === null) {
+    while (!existsSync(ready) && Date.now() < deadline && child.exitCode === null) {
       await delay(10);
     }
-    assert.ok(await stat(ready, { throwIfNoEntry: false }), 'Candidate worker never started');
+    assert.ok(existsSync(ready), 'Candidate worker never started');
     child.kill('SIGINT');
     assert.deepEqual(await exited, [2, null]);
     assert.equal(JSON.parse(stdout).reasonCode, 'cancelled');

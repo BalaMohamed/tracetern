@@ -1,0 +1,42 @@
+name: TraceTern beta feedback
+description: Report a setup failure, replay mismatch, unsupported adapter, or incorrect experiment selection.
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: What happened?
+      options:
+        - Setup or installation failure
+        - Replay or verification mismatch
+        - Unsupported adapter or contract
+        - Incorrect experiment selection
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: TraceTern version, operating system, and Node version
+      description: For a checkout, include the TraceTern commit ID.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps and expected result
+      description: Include public revision IDs and commands where applicable. Replace local paths with placeholders.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed result
+      description: Include relevant verdicts, reason codes, or sanitized errors. A local run ID may help distinguish attempts.
+    validations:
+      required: true
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: Public issue
+      options:
+        - label: I removed credentials, private repository details, local paths, and saved SQLite databases from this report.
+          required: true

@@ -2,6 +2,8 @@
 
 TraceTern investigates whether a software optimization preserves behavior. Its first local experiment compares three implementations of an orders API against a reference using a real PostgreSQL database.
 
+[Beta quickstart](docs/QUICKSTART.md) · [Changelog](CHANGELOG.md)
+
 ## Run the orders investigation
 
 Use Node.js 24.12 or newer, npm and PostgreSQL server tools (`initdb` and `pg_ctl` on PATH) on macOS or Linux as a non-root user.
