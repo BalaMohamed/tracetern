@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.0-beta.1
 
 - Select an experiment using assertions that passed in a saved run, compare pinned library revisions, and verify a committed follow-up against the saved baseline.
 - Distinguish shared failures from candidate regressions and report replay incompatibilities, invalid artifacts, timeouts, and cancellations.

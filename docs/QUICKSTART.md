@@ -10,9 +10,9 @@ revisions you trust.
 | --- | --- |
 | TanStack Query Core or Zustand | Locked builder for comparisons and verification. Replay uses saved bundles. |
 | Orders | PostgreSQL server tools `initdb` and `pg_ctl` on `PATH`, and a non-root account |
-| DataFusion | The [pinned Python environments](../README.md#compare-apache-datafusion-parquet-pushdown) |
-| Ollama ranking | An [installed local model](../README.md#browse-and-use-local-ollama-models) |
-| MCP | The optional [stdio adapter](../README.md#connect-a-coding-assistant) |
+| DataFusion | The [pinned Python environments](USAGE.md#compare-apache-datafusion-parquet-pushdown) |
+| Ollama ranking | An [installed local model](USAGE.md#browse-and-use-local-ollama-models) |
+| MCP | The optional [stdio adapter](USAGE.md#connect-a-coding-assistant) |
 
 ## Install and fetch the demo
 

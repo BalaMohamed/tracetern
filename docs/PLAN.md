@@ -19,7 +19,7 @@ TraceTern supports the standalone Orders contract, pinned layouts for TanStack Q
 ## Public beta gates
 
 1. Verify the [quickstart](QUICKSTART.md) from a clean checkout. Required GitHub checks run deterministic fixtures on Linux and macOS. Before tagging, also run the pinned upstream library checks and DataFusion release checks.
-2. Give the quickstart to two engineers outside this development workflow. Record whether each completed installation, selection, viewer inspection, replay, and verification. Close any blocker and have the affected engineer retry from a fresh checkout.
-3. Review repository visibility and distribution before release. The current origin is private. Public distribution requires an explicit decision from the repository owner about where the source and history will be published.
+2. The owner accepted two clean macOS simulations for this beta. Both completed installation, selection, viewer inspection, replay, and verification. Independent onboarding feedback remains welcome.
+3. The owner approved public distribution from the existing GitHub repository, including its commit history.
 4. Once these gates pass, tag the tested commit as `v0.2.0-beta.1` and publish release notes with the supported workflows, quickstart, evaluation results, known gaps, and issue form.
 5. Triage feedback weekly for the first 30 days after release. Prioritize incorrect verdicts, unreproducible evidence, and install failures. Record voluntarily reported setup completions, unsupported cases, and inaccurate selections. At day 30, publish the outcomes and open blockers, then use the reported evidence to decide whether to ship a patch or expand adapter coverage.
