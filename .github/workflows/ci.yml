@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      pinned_demo:
+        description: Fetch public revisions and verify the beta quickstart
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,3 +56,6 @@ jobs:
         run: node --test dist/test/library/*.test.js
       - name: Test MCP
         run: npm test --prefix integrations/mcp
+      - name: Verify the pinned public PR quickstart
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.pinned_demo
+        run: bash scripts/check-beta-quickstart.sh

@@ -88,6 +88,12 @@ A successful verification exits 0. It links to the original run, reproduces
 its baseline observations, and shows the follow-up maintaining two results.
 You can open or replay the verification using its own run ID.
 
+Maintainers can run the command-line walkthrough with
+`bash scripts/check-beta-quickstart.sh` after building. It uses a fresh
+evidence store each time. In GitHub Actions, run **TraceTern checks** on
+`main` with **Fetch public revisions and verify the beta quickstart**
+enabled to exercise the same path on Linux and macOS.
+
 ## Local data and feedback
 
 The ignored `.tracetern/runs.sqlite` contains observations, source bundles,
